@@ -31,3 +31,9 @@ npm install && npm run build   # يحتاج bun
 
 ## الأصول
 أطلس Alpha ونسيج اللون: «Free Hair Card Alphas» by Ryan Sainsbury — حرية الاستخدام الشخصي والتجاري دون إسناد، ولا يُعاد بيعها كما هي. انظر `assets/License.txt` (مضمّنة داخل `src/assets.js`).
+
+## Eyebrow / moustache PBR (integrated generator)
+The «حواجب PBR» tab embeds the Eyebrow PBR Generator: it generates 2048×1024 Albedo/Normal/Roughness/AO/Height/Opacity maps, bakes them symmetrically into the head texture, and grows brow/moustache cards inside the generated shape following its strand direction. Draw the shape directly on the face with tool **B**; export all maps as PNG.
+
+## Reference-style presets
+`quiff` (classic volume, tapered sides), `wavylong` (shoulder-length wavy layers, ash blonde) and `skinfade` (stippled skin fade to bare nape, short textured top with crown whorl). The fade sliders (تدرج الجوانب / بداية / نهاية) work on any style.

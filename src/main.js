@@ -408,7 +408,12 @@ function updateFlowLines() {
 /* ---------------- eyebrow / moustache PBR ---------------- */
 const PB = { target: 'eyebrow', layers: { eyebrow: PBR.makeLayer('eyebrow'), mustache: PBR.makeLayer('mustache') }, view: 'Preview', gen: { eyebrow: null, mustache: null } };
 const PBL = new Proxy({}, { get: (_, k) => PB.layers[PB.target][k], set: (_, k, v) => { PB.layers[PB.target][k] = v; return true; } });
-const pbrColor = (L) => (L.useHair ? (HAIR_COLORS[S.color] || HAIR_COLORS.darkbrown)[2] : L.color);
+// facial hair reads darker than the scalp tips: 35% from root to tip colour
+const pbrColor = (L) => {
+  if (!L.useHair) return L.color;
+  const h = HAIR_COLORS[S.color] || HAIR_COLORS.darkbrown, a = new THREE.Color(h[1]), b = new THREE.Color(h[2]);
+  return '#' + a.lerp(b, 0.35).getHexString();
+};
 function regenPBR(type, draft = false) {
   const L = PB.layers[type];
   PB.gen[type] = PBR.generate(L, { draft, color: pbrColor(L) }); PB.gen[type].color = pbrColor(L);
@@ -868,6 +873,9 @@ const topo = () => { topoDirty = hairDirty = true; };
   slider(p, S, 'recede', 'انحسار الجبهة', -0.3, 1, 0.01, custom(hairlineChanged));
   slider(p, S, 'napeUp', 'ارتفاع القفا', -0.2, 1, 0.01, custom(hairlineChanged));
   slider(p, S, 'sideburn', 'طول السوالف', 0, 0.6, 0.01, custom(hairlineChanged));
+  slider(p, S, 'fade', 'تدرج الجوانب (Fade)', 0, 1, 0.01, g);
+  slider(p, S, 'fadeLo', 'بداية التدرج (جلد)', -0.3, 0.8, 0.01, g);
+  slider(p, S, 'fadeHi', 'نهاية التدرج (شعر)', 0, 1.2, 0.01, g);
   slider(p, S, 'swirl', 'دوران الدوامة', -2, 2, 0.01, custom(() => { updateFlowLines(); scheduleGen(); }));
   slider(p, S, 'whorlX', 'موضع الدوامة', -0.3, 0.3, 0.005, custom(() => { updateFlowLines(); scheduleGen(); }));
   h3(p, 'شعر الوجه');

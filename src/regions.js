@@ -144,6 +144,13 @@ export function follicleDir(p, n, id, o, out) {
   return out;
 }
 
+// fade / taper: 1 = full hair, 0 = skin; crown, sides, back, nape and sideburns
+export function fadeMul(p, id, o) {
+  if (!o.fade || !(id >= 3 && id <= 7)) return 1;
+  const f = sstep(o.fadeLo, o.fadeHi, p.y);
+  return 1 - o.fade * (1 - f);
+}
+
 export const partX = (o) => ({ center: 0, left: 0.27, right: -0.27 }[o.part] ?? null);
 
 // styling direction (where the hair is combed to); facial hair keeps its follicle direction

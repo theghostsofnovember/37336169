@@ -9,6 +9,7 @@ export const HAIR_COLORS = {
   blonde: ['أشقر', '#5a4228', '#c9a46c'],
   red: ['أحمر', '#3a120a', '#a0442a'],
   grey: ['رمادي', '#3a3633', '#9a948c'],
+  ash: ['أشقر رمادي', '#7d7268', '#d8cec4'],
   white: ['أبيض', '#8f8a84', '#e6e2dc'],
 };
 export const SKIN_TONES = { light: ['فاتح', '#d8b49c'], wheat: ['حنطي', '#b88a6c'], tan: ['أسمر', '#9a6a4c'], dark: ['داكن', '#5e3c2a'], portrait: ['البورتريه', '#a5806b'] };
@@ -16,7 +17,7 @@ export const SKIN_TONES = { light: ['فاتح', '#d8b49c'], wheat: ['حنطي', 
 export const STYLE_DEFAULTS = {
   preset: 'portrait', style: 'up', part: 'none', len: 0.42, lenVar: 0.2, reg: [1, 1, 0.85, 0.65, 0.75, 0.45, 0.3],
   count: 650, lift: 0.55, rootBend: 0.25, gravity: 0.08, cling: 0.75, wave: 0.45, waveFreq: 2.5, curl: 0, curlFreq: 6, frizz: 0.04,
-  recede: 0, napeUp: 0, sideburn: 0.18, swirl: 1, whorlX: 0.06, browThick: 1, beardCheek: 0, beardNeck: 0.3,
+  recede: 0, napeUp: 0, fade: 0, fadeLo: 0.05, fadeHi: 0.75, sideburn: 0.18, swirl: 1, whorlX: 0.06, browThick: 1, beardCheek: 0, beardNeck: 0.3,
   brows: 'thick', mous: 'chevron', beard: 'stubble', beardLen: 0.06, beardCurl: 0.2,
   color: 'darkbrown', skin: 'portrait', scalpTex: 0.9, inner: 0.45,
   card: { type: 1, perGuide: 2, width: 0.07, widthVar: 0.35, taper: 0.4, rootW: 0.65, spread: 0.8, fan: 0.6, twist: 0.45, noise: 0.5, fill: 2, fly: 0.35, segs: 10 },
@@ -30,6 +31,12 @@ export const PRESETS = [
   P('fade', 'تدرج (فيد) + أعلى مجعد', { style: 'up', len: 0.22, reg: [1.1, 1, 0.8, 0.12, 0.15, 0.06, 0.15], count: 1000, lift: 0.7, rootBend: 0.2, cling: 0.3, wave: 0.2, curl: 0.55, curlFreq: 9, scalpTex: 1, inner: 0.3, beard: 'short', beardLen: 0.035, mous: 'full', card: { type: 1, perGuide: 1, width: 0.06, fill: 1, fly: 0.3, segs: 12, twist: 0.6, noise: 0.5 } }),
   P('sidepart', 'فرق جانبي كلاسيكي', { style: 'side', part: 'left', len: 0.36, reg: [1, 1, 0.8, 0.35, 0.45, 0.25, 0.3], count: 900, lift: 0.3, rootBend: 0.2, cling: 0.85, wave: 0.12, beard: 'none', mous: 'none', brows: 'natural', color: 'brown', card: { type: 2, perGuide: 2, width: 0.07, fill: 2, fly: 0.15, segs: 10, twist: 0.25, noise: 0.3 } }),
   P('slick', 'مسحوب للخلف', { style: 'back', len: 0.48, reg: [1, 1, 0.85, 0.6, 0.7, 0.4, 0.3], count: 850, lift: 0.18, rootBend: 0.15, cling: 0.95, wave: 0.15, beard: 'short', beardLen: 0.03, mous: 'full', card: { type: 2, perGuide: 2, width: 0.07, fill: 2, fly: 0.1, segs: 10, twist: 0.2, noise: 0.25 } }),
+  // reference: classic textured quiff, short tapered sides, top pushed up and back
+  P('quiff', 'كلاسيكي بحجم (كويف)', { style: 'back', len: 0.42, lenVar: 0.22, reg: [1.2, 0.95, 0.7, 0.3, 0.38, 0.18, 0.2], count: 1100, lift: 0.85, rootBend: 0.3, gravity: 0.06, cling: 0.75, wave: 0.18, waveFreq: 2.2, curl: 0.1, frizz: 0.05, fade: 0.35, fadeLo: 0.05, fadeHi: 0.6, beard: 'none', mous: 'none', brows: 'natural', color: 'darkbrown', skin: 'light', card: { type: 1, perGuide: 2, width: 0.065, fill: 2, fly: 0.35, segs: 12, twist: 0.5, noise: 0.5 } }),
+  // reference: shoulder-length wavy layers, swept back off the forehead, ash blonde, lots of flyaways
+  P('wavylong', 'متوسط مموج متدرج', { style: 'back', len: 0.9, lenVar: 0.32, reg: [0.8, 0.9, 1, 1, 1.05, 1.05, 0.45], count: 950, lift: 0.3, rootBend: 0.2, gravity: 0.75, cling: 0.7, wave: 0.7, waveFreq: 1.7, curl: 0.15, curlFreq: 3, frizz: 0.06, beard: 'none', mous: 'none', brows: 'natural', color: 'ash', skin: 'light', card: { type: 1, perGuide: 2, width: 0.075, fill: 2, fly: 0.6, segs: 20, twist: 0.6, noise: 0.8, taper: 0.35 } }),
+  // reference: skin fade (stipple to bare skin at the nape), short textured top with visible crown whorl
+  P('skinfade', 'سكين فيد + أعلى مكثف', { style: 'natural', len: 0.24, lenVar: 0.25, reg: [1.15, 1, 1, 0.5, 0.5, 0.3, 0.3], count: 1300, lift: 0.5, rootBend: 0.3, gravity: 0.08, cling: 0.55, wave: 0.35, waveFreq: 3, curl: 0.12, curlFreq: 5, frizz: 0.06, fade: 1, fadeLo: -0.05, fadeHi: 0.95, swirl: 1.4, skin: 'wheat', napeUp: 0.1, sideburn: 0.12, scalpTex: 1, inner: 0.3, beard: 'none', mous: 'none', brows: 'natural', color: 'black', card: { type: 1, perGuide: 1, width: 0.06, fill: 1, fly: 0.3, segs: 12, twist: 0.6, noise: 0.5 } }),
   P('long', 'طويل ناعم', { style: 'down', part: 'center', len: 1.45, lenVar: 0.12, reg: [0.75, 1, 1, 0.95, 1.05, 1, 0.4], count: 900, lift: 0.12, rootBend: 0.12, gravity: 0.9, cling: 0.8, wave: 0.12, waveFreq: 1.2, beard: 'none', mous: 'none', brows: 'natural', color: 'chestnut', card: { type: 2, perGuide: 2, width: 0.09, fill: 2, fly: 0.25, segs: 18, twist: 0.3, noise: 0.4, taper: 0.5 } }),
   P('curly', 'مجعد', { style: 'natural', len: 0.42, reg: [1, 1, 0.95, 0.75, 0.85, 0.6, 0.3], count: 700, lift: 0.6, rootBend: 0.3, gravity: 0.15, cling: 0.3, wave: 0.2, curl: 0.8, curlFreq: 7, frizz: 0.08, card: { type: 1, perGuide: 1, width: 0.075, fill: 1, fly: 0.4, segs: 22, twist: 0.6, noise: 0.6 } }),
   P('afro', 'أفرو', { style: 'afro', len: 0.36, reg: [0.9, 1, 1, 0.85, 0.9, 0.55, 0.3], count: 800, lift: 0.9, rootBend: 0.25, gravity: 0.05, cling: 0, wave: 0.3, curl: 1, curlFreq: 11, frizz: 0.12, color: 'black', skin: 'dark', beard: 'short', beardLen: 0.04, beardCurl: 0.8, card: { type: 0, perGuide: 1, width: 0.08, fill: 1, fly: 0.5, segs: 24, twist: 0.8, noise: 0.7 } }),

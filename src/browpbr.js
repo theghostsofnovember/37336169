@@ -25,7 +25,14 @@ export function makeLayer(type) {
 export const resetShape = (L) => { Object.assign(L, PR[L.type]); L.CS = null; };
 
 const mul = (a) => () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
-const canvasPool = {};
+const canvasPool = {}, bufPool = {};
+const buf = (k, n) => { let b = bufPool[k]; if (!b || b.length !== n) b = bufPool[k] = new Float32Array(n); else b.fill(0); return b; };
+// box-filter downsample of a float image with `ch` channels by integer factor f
+function boxDown(src, w, h, f, ch) {
+  const ow = w / f, oh = h / f, out = new Float32Array(ow * oh * ch), k = 1 / (f * f);
+  for (let y = 0; y < h; y++) { const oy = ((y / f) | 0) * ow; for (let x = 0; x < w; x++) { const o = (oy + ((x / f) | 0)) * ch, i = (y * w + x) * ch; for (let c = 0; c < ch; c++) out[o + c] += src[i + c] * k; } }
+  return out;
+}
 const cv = (key, w = TW, h = TH) => { let c = canvasPool[key]; if (!c) { c = canvasPool[key] = document.createElement('canvas'); c.width = w; c.height = h; } return c; };
 
 function splineFn(L) {
@@ -67,7 +74,7 @@ export function generate(L, { draft = false, color } = {}) {
   for (const s of S) for (const p of s.pts) { box[0] = Math.min(box[0], p[0]); box[1] = Math.min(box[1], p[1]); box[2] = Math.max(box[2], p[0]); box[3] = Math.max(box[3], p[1]); }
 
   // software rasterizer (same compositing as the original canvas strokes: source-over albedo/opacity, lighten height)
-  const NP = W * H, Af = new Float32Array(NP * 4), Hf = new Float32Array(NP), Mf = new Float32Array(NP);
+  const NP = W * H, Af = buf('Af', NP * 4), Hf = buf('Hf', NP), Mf = buf('Mf', NP);
   const seg = (x1, y1, x2, y2, w, ga, r, g, b, hv) => {
     const hw = w * 0.5 + 0.5, cw = Math.min(1, w);
     const minX = Math.max(0, Math.floor(Math.min(x1, x2) - hw)), maxX = Math.min(W - 1, Math.ceil(Math.max(x1, x2) + hw));
@@ -100,9 +107,12 @@ export function generate(L, { draft = false, color } = {}) {
     Hd[k] = Hd[k + 1] = Hd[k + 2] = Hf[i]; Hd[k + 3] = 255; M[k] = M[k + 1] = M[k + 2] = Mf[i]; M[k + 3] = 255;
   }
   cA.getContext('2d').putImageData(iA, 0, 0); cH.getContext('2d').putImageData(iH, 0, 0); cM.getContext('2d').putImageData(iM, 0, 0);
-  const sm = cv(key + 'blurS', W / 16, H / 16), sx = sm.getContext('2d'); sx.imageSmoothingQuality = 'high'; sx.clearRect(0, 0, sm.width, sm.height); sx.drawImage(cM, 0, 0, sm.width, sm.height);
-  const bl = cv(key + 'blur'), bx = bl.getContext('2d'); bx.imageSmoothingEnabled = true; bx.drawImage(sm, 0, 0, W, H);
-  const B = bx.getImageData(0, 0, W, H).data;
+  // blurred opacity for AO: 16x box downsample, bilinear upsample (pure JS: canvas readbacks are very slow)
+  const BW = W / 16, BH = H / 16, Bs = boxDown(Mf, W, H, 16, 1);
+  const B = (x, y) => {
+    const fx = Math.min(BW - 1.001, Math.max(0, x / 16 - 0.5)), fy = Math.min(BH - 1.001, Math.max(0, y / 16 - 0.5)), xi = fx | 0, yi = fy | 0, u = fx - xi, v = fy - yi, i = yi * BW + xi;
+    return (Bs[i] * (1 - u) + Bs[i + 1] * u) * (1 - v) + (Bs[i + BW] * (1 - u) + Bs[i + BW + 1] * u) * v;
+  };
   const cN = cv(key + 'N'), cAO = cv(key + 'AO'), cR = cv(key + 'R');
   const N = new ImageData(W, H), AO = new ImageData(W, H), RO = new ImageData(W, H), sc = L.depth / 60;
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
@@ -110,19 +120,20 @@ export function generate(L, { draft = false, color } = {}) {
     let nx = 0, ny = 0; if (x > 0 && y > 0 && x < W - 1 && y < H - 1) { nx = (Hd[i - 4] - Hd[i + 4]) * sc; ny = (Hd[i + W * 4] - Hd[i - W * 4]) * sc; }
     const l = Math.hypot(nx, ny, 1);
     N.data[i] = (nx / l * 0.5 + 0.5) * 255; N.data[i + 1] = (ny / l * 0.5 + 0.5) * 255; N.data[i + 2] = (1 / l * 0.5 + 0.5) * 255; N.data[i + 3] = 255;
-    const ao = m > 0.02 ? 255 * (0.35 + 0.65 * B[i] / 255) * (0.6 + 0.4 * h) : 255, ro = m > 0.02 ? 255 * (0.5 + 0.4 * (1 - h)) : 204;
+    const ao = m > 0.02 ? 255 * (0.35 + 0.65 * B(x, y) / 255) * (0.6 + 0.4 * h) : 255, ro = m > 0.02 ? 255 * (0.5 + 0.4 * (1 - h)) : 204;
     AO.data[i] = AO.data[i + 1] = AO.data[i + 2] = ao; AO.data[i + 3] = 255; RO.data[i] = RO.data[i + 1] = RO.data[i + 2] = ro; RO.data[i + 3] = 255;
   }
   cN.getContext('2d').putImageData(N, 0, 0); cAO.getContext('2d').putImageData(AO, 0, 0); cR.getContext('2d').putImageData(RO, 0, 0);
 
   // low-res copies for projecting onto the head + strand field
-  const SW = 512, SH = 256, small = (src, k2) => { const c = cv(key + k2, SW, SH), x = c.getContext('2d'); x.imageSmoothingQuality = 'high'; x.clearRect(0, 0, SW, SH); x.drawImage(src, 0, 0, SW, SH); return x.getImageData(0, 0, SW, SH).data; };
-  const sA = small(cA, 'sA'), sAO = small(cAO, 'sAO');
-  const FW = 128, FH = 64, fm = cv(key + 'fm', FW, FH), fx = fm.getContext('2d'); fx.imageSmoothingQuality = 'high'; fx.clearRect(0, 0, FW, FH); fx.drawImage(cM, 0, 0, FW, FH);
-  const raw = fx.getImageData(0, 0, FW, FH).data, mask = new Float32Array(FW * FH);
+  const SW = 512, SH = 256, pa = boxDown(Af, W, H, 4, 4), sA = new Uint8ClampedArray(SW * SH * 4), sAO = new Uint8ClampedArray(SW * SH * 4);
+  for (let i = 0; i < SW * SH; i++) { const al = pa[i * 4 + 3]; if (al > 1e-4) { sA[i * 4] = pa[i * 4] / al; sA[i * 4 + 1] = pa[i * 4 + 1] / al; sA[i * 4 + 2] = pa[i * 4 + 2] / al; } sA[i * 4 + 3] = al * 255; }
+  const aoF = buf('aoF', NP); for (let i = 0; i < NP; i++) aoF[i] = AO.data[i * 4];
+  const ad = boxDown(aoF, W, H, 4, 1); for (let i = 0; i < SW * SH; i++) sAO[i * 4] = ad[i];
+  const FW = 128, FH = 64, raw = boxDown(Mf, W, H, 16, 1), mask = new Float32Array(FW * FH);
   for (let y = 0; y < FH; y++) for (let x = 0; x < FW; x++) {
     let s2 = 0, c2 = 0;
-    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const xx = x + dx, yy = y + dy; if (xx < 0 || yy < 0 || xx >= FW || yy >= FH) continue; s2 += raw[(yy * FW + xx) * 4]; c2++; }
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const xx = x + dx, yy = y + dy; if (xx < 0 || yy < 0 || xx >= FW || yy >= FH) continue; s2 += raw[yy * FW + xx]; c2++; }
     mask[y * FW + x] = Math.min(1, (s2 / c2 / 255) * 2.2);
   }
   // growth direction per field cell: nearest spline sample, deterministic version of the strand angle

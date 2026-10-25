@@ -1,6 +1,6 @@
 // Region-aware hair generation: roots sampled per head region, grown along follicle → style fields.
 import * as THREE from 'three';
-import { toRef, regionAt, follicleDir, styleDir, beardShape, isScalp, REG, REF } from './regions.js';
+import { toRef, regionAt, follicleDir, styleDir, beardShape, isScalp, REG, REF, fadeMul } from './regions.js';
 import { growStrand } from './grow.js';
 
 function sampler(meshes, F, o) {
@@ -47,7 +47,7 @@ function sampleRoots(tris, F, o, ids, count, minDist, weight) {
     if (Math.random() > weight(reg, q, mkv)) continue;
     if (near(p)) continue;
     const n = new THREE.Vector3().addScaledVector(A.fromBufferAttribute(nor, t.i0), w).addScaledVector(B.fromBufferAttribute(nor, t.i1), u).addScaledVector(C.fromBufferAttribute(nor, t.i2), v).normalize();
-    out.push({ p, n, q, id: reg.id });
+    out.push({ p, n, q, id: reg.id, w: reg.w });
     const k = key(Math.floor(p.x / cell), Math.floor(p.y / cell), Math.floor(p.z / cell));
     (grid.get(k) || grid.set(k, []).get(k)).push(p);
   }
@@ -91,10 +91,13 @@ export function generateHair({ meshes, F, collider, center }, S, { parts = null 
     const L = new Float32Array(roots.length);
     roots.forEach((r, i) => { L[i] = S.len * S.reg[r.id - 1] * (1 + (rnd() - 0.5) * 2 * S.lenVar); });
     smoothLengths(roots, L);
+    roots.forEach((r, i) => { L[i] *= Math.pow(fadeMul(r.q, r.id, S), 1.6); });
     roots.forEach((r, i) => {
       if (L[i] < 0.012) return;
-      out.push({ pts: grow(r, L[i]), n: r.n, group: 0, type: S.card.type ?? 1, layer: [0, 1, 1, 2][Math.floor(rnd() * 4)], w: 0.85 + rnd() * 0.3 });
-      if (rnd() < S.inner && L[i] > 0.05) out.push({ pts: grow(r, L[i] * 0.55, { lift: S.lift * 0.25, cling: 1, curlR: S.curl * 0.02 * s, gravity: S.gravity * 0.5 }), n: r.n, group: 1, type: 4, layer: 0, w: 0.9 + rnd() * 0.3 });
+      // thinner cards along the hairline so its edge stays soft
+      const edge = 0.45 + 0.55 * Math.min(1, r.w * 1.1);
+      out.push({ pts: grow(r, L[i]), n: r.n, group: 0, type: S.card.type ?? 1, layer: [0, 1, 1, 2][Math.floor(rnd() * 4)], w: (0.85 + rnd() * 0.3) * edge });
+      if (rnd() < S.inner && L[i] > 0.05 && r.w > 0.97 && r.id !== REG.FRONT && r.id !== REG.SIDEBURN) out.push({ pts: grow(r, L[i] * 0.55, { lift: S.lift * 0.25, cling: 1, curlR: S.curl * 0.02 * s, gravity: S.gravity * 0.5 }), n: r.n, group: 1, type: 4, layer: 0, w: 0.9 + rnd() * 0.3 });
     });
   }
   const face = (ids, count, minD, weight, len, group, type, extra) => {

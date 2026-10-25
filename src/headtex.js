@@ -1,6 +1,6 @@
 // Auto UV unwrap + baked head texture (skin + directional scalp/beard hair base) to hide gaps between cards.
 import * as THREE from 'three';
-import { toRef, regionAt, follicleDir, beardShape, isScalp, REG, REGION_INFO, sstep } from './regions.js';
+import { toRef, regionAt, follicleDir, beardShape, isScalp, REG, REGION_INFO, sstep, fadeMul } from './regions.js';
 
 // Azimuthal-equidistant unwrap around the head's up axis: one seamless island, least distortion on the scalp.
 export function computeUVs(meshes, F) {
@@ -36,6 +36,21 @@ function streak(q, d, F) {
   const px = q.x * F - d.x * k + d.x * c, py = q.y * F - d.y * k + d.y * c, pz = q.z * F - d.z * k + d.z * c;
   const a = vnoise(px, py, pz), b = vnoise(q.x * 22 + 7, q.y * 22 + 3, q.z * 22 + 1);
   return Math.min(1, sstep(0.3, 0.85, a) * 0.8 + b * 0.35);
+}
+
+// short hair stubs: one jittered stub per 3D cell, elongated along the follicle, present with probability ~ density
+function stipple(q, d, F, dens) {
+  const x = q.x * F, y = q.y * F, z = q.z * F, xi = Math.floor(x), yi = Math.floor(y), zi = Math.floor(z);
+  let best = 0;
+  for (let dx = -1; dx <= 0; dx++) for (let dy = -1; dy <= 0; dy++) for (let dz = -1; dz <= 0; dz++) {
+    const cx = xi + dx + (x - xi > 0.5 ? 1 : 0), cy = yi + dy + (y - yi > 0.5 ? 1 : 0), cz = zi + dz + (z - zi > 0.5 ? 1 : 0);
+    if (hash(cx, cy, cz + 911) > dens * 0.88 + 0.1) continue;
+    const ox = cx + hash(cx, cy, cz) - x, oy = cy + hash(cx + 7, cy, cz) - y, oz = cz + hash(cx, cy + 3, cz) - z;
+    const al = ox * d.x + oy * d.y + oz * d.z, px = ox - al * d.x, py = oy - al * d.y, pz = oz - al * d.z;
+    const r2 = (al * al) / 0.25 + (px * px + py * py + pz * pz) / 0.07;
+    if (r2 < 1) best = Math.max(best, 1 - r2);
+  }
+  return Math.min(1, best * 2.2);
 }
 
 const LIP = new THREE.Color('#9c5a4c'), BLUSH = new THREE.Color('#b0645a');
@@ -91,7 +106,15 @@ export function bakeHeadTexture(meshes, F, o, size) {
         const reg = regionAt(q, o);
         skinAt(q, skin, c);
         const dens = Math.min(1, hairDensity(q, mk[i0] * w0 + mk[i1] * w1 + mk[i2] * w2, reg, o));
-        if (dens > 0.003) {
+        const fm = isScalp(reg.id) ? fadeMul(q, reg.id, o) : 1;
+        if (fm < 0.999 && dens > 0.003) {
+          // faded zone: individual follicle stipple whose density follows the fade
+          follicleDir(q, Nn, reg.id, o, dir);
+          const dot = stipple(q, dir, 115 * Math.min(1, size / 2048), fm);
+          c.multiplyScalar(1 - (0.06 + 0.55 * fm * fm) * dens);
+          hc.copy(hair).multiplyScalar(0.8);
+          c.lerp(hc, Math.min(1, dot * dens * (0.75 + 0.25 * fm)));
+        } else if (dens > 0.003) {
           follicleDir(q, Nn, reg.id, o, dir);
           const s = streak(q, dir, FREQ);
           c.multiplyScalar(1 - 0.4 * dens);
