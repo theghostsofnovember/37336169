@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
-export const N = 14;
-export const MAX_GUIDES = 3000;
+export const N = 32;
+export const MAX_GUIDES = 5000;
 
 export const CARD_TYPES = [
   { name: 'خصلات شاردة ناعمة (A1)', ch: 0, u0: 0.03, u1: 0.225, vRoot: 0.91, vTip: 0.04 },
@@ -49,10 +49,10 @@ export function genGuide(root, normal, dir, length, P, collider, center = null) 
   const phase = Math.random() * 6.28, freq = 0.6 + Math.random() * 0.5;
   for (let i = 1; i < N; i++) {
     const tt = i / (N - 1);
-    v.y -= P.gravity * 0.2 * (0.4 + tt);
-    if (center && P.cling) { tmp.copy(p).sub(center).normalize(); v.addScaledVector(tmp, -P.cling * 0.25 * tt); }
+    v.y -= P.gravity * 0.2 * (0.4 + tt) * (13 / (N - 1));
+    if (center && P.cling) { tmp.copy(p).sub(center).normalize(); v.addScaledVector(tmp, -P.cling * 0.25 * tt * (13 / (N - 1))); }
     tmp.crossVectors(v, normal).normalize();
-    v.addScaledVector(tmp, Math.sin(i * freq + phase) * P.wave * 0.3);
+    v.addScaledVector(tmp, Math.sin(i * freq * (13 / (N - 1)) + phase) * P.wave * 0.3 * (13 / (N - 1)));
     v.normalize();
     const prev = p.clone();
     p.addScaledVector(v, step);

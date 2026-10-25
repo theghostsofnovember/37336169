@@ -5,8 +5,14 @@ import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
 import { ALPHA1, ALPHA2, COLORTEX } from './assets.js';
 import { N, MAX_GUIDES, CARD_TYPES, CardBuilder, newGuide, computeSeg, enforceLengths, genGuide, resamplePolyline, neighbours } from './hair.js';
+const clone = (o) => JSON.parse(JSON.stringify(o));
+const S = { ...clone(STYLE_DEFAULTS), texRes: 2048, view: 'texture', showFlow: false, auto: true };
 import { makeProceduralHead, bakeImported, Collider, refreshMaskColors, skin } from './head.js';
 import * as PORTRAIT from './portrait.js';
+import { computeFrame, toRef, fromRef, regionAt, follicleDir, REGION_INFO, isScalp } from './regions.js';
+import { computeUVs, bakeHeadTexture, checkerCanvas, regionColors } from './headtex.js';
+import { generateHair } from './smart.js';
+import { PRESETS as STYLE_PRESETS, STYLE_DEFAULTS, HAIR_COLORS, SKIN_TONES, SHADE, groupTemplates } from './styles.js';
 import { makeHairMaterial } from './shader.js';
 import { mkTabs, head as h3, note, slider, check, color, select, buttons, refreshUI, onRefresh } from './ui.js';
 
@@ -110,11 +116,16 @@ const snapshot = () => ({
   groups: JSON.parse(JSON.stringify(groups)), active: P.activeGroup,
 });
 const restore = (s) => {
-  guides = s.guides.map((o) => { const g = newGuide(o.pts.slice(), new THREE.Vector3().fromArray(o.n), o.type, o.layer, o.group || 0); g.wScale = o.w; g.seed = o.seed; return g; });
+  guides = s.guides.map((o) => { const g = newGuide(fitN(o.pts), new THREE.Vector3().fromArray(o.n), o.type, o.layer, o.group || 0); g.wScale = o.w; g.seed = o.seed; return g; });
   if (s.groups) { groups = JSON.parse(JSON.stringify(s.groups)); P.activeGroup = Math.min(s.active || 0, groups.length - 1); refreshUI(); }
   headMeshes.forEach((m, i) => { if (s.masks[i] && s.masks[i].length === m.userData.mask.length) { m.userData.mask.set(s.masks[i]); refreshMaskColors(m, P.showMask); } });
   topoDirty = hairDirty = true; resetSim();
 };
+function fitN(pts) {
+  if (pts.length === N * 3) return Float32Array.from(pts);
+  const poly = []; for (let i = 0; i < pts.length; i += 3) poly.push(new THREE.Vector3(pts[i], pts[i + 1], pts[i + 2]));
+  return resamplePolyline(poly);
+}
 const pushUndo = () => { undoStack.push(snapshot()); if (undoStack.length > 60) undoStack.shift(); redoStack.length = 0; };
 const undo = () => { if (!undoStack.length) return; redoStack.push(snapshot()); restore(undoStack.pop()); };
 const redo = () => { if (!redoStack.length) return; undoStack.push(snapshot()); restore(redoStack.pop()); };
@@ -191,12 +202,24 @@ function addCustomAtlas(img) {
 }
 
 /* ---------------- head ---------------- */
-let headExtras = null;
+let headExtras = null, frame = null, maskPainted = false, headTex = null, checkerTex = null, lastBake = 0;
+function applyRegionMask() {
+  if (!frame || maskPainted) return;
+  const q = new THREE.Vector3(), p = new THREE.Vector3();
+  for (const m of headMeshes) {
+    const pos = m.geometry.attributes.position, mk = m.userData.mask;
+    for (let i = 0; i < pos.count; i++) { const r = regionAt(toRef(p.fromBufferAttribute(pos, i), frame, q), S); mk[i] = isScalp(r.id) ? r.w : 0; }
+  }
+}
 function setHead(res) {
   if (headExtras) { headGroup.remove(headExtras); headExtras = null; }
   headMeshes.forEach((m) => { headGroup.remove(m); m.geometry.dispose(); m.material.dispose(); });
   headMeshes = res.meshes; headMeshes.forEach((m) => headGroup.add(m));
-  headCenter.copy(res.center); collider = new Collider(headMeshes);
+  collider = new Collider(headMeshes);
+  frame = computeFrame(headMeshes);
+  fromRef(PORTRAIT.CENTER, frame, headCenter);
+  computeUVs(headMeshes, frame);
+  maskPainted = false; applyRegionMask();
   guides = []; undoStack.length = 0; redoStack.length = 0; topoDirty = hairDirty = true; resetSim();
   computeCrown(); frameHead();
 }
@@ -298,6 +321,86 @@ function generateFromMask(style = null) {
   setHint(`تم توليد ${made} مساراً من منطقة الفروة.`);
 }
 
+/* ---------------- smart style ---------------- */
+function generateStyle({ undo = true } = {}) {
+  if (!frame) return;
+  if (undo) pushUndo();
+  const t0 = performance.now();
+  applyRegionMask();
+  const tpl = groupTemplates(S), names = tpl.map((t) => t.name);
+  const custom = groups.map((g, i) => [g, i]).filter(([g]) => !names.includes(g.name));
+  const remap = new Map(custom.map(([, i], k) => [i, tpl.length + k]));
+  const kept = guides.filter((g) => remap.has(g.group)).map((g) => { g.group = remap.get(g.group); return g; });
+  groups = tpl.map((t) => {
+    const old = groups.find((g) => g.name === t.name), g = mkGroup(t.name, t.color, clone(t));
+    if (old) { g.visible = old.visible; g.lockEdit = old.lockEdit; g.lockPhys = old.lockPhys; g.tint = old.tint; g.bright = old.bright; }
+    return g;
+  }).concat(custom.map(([g]) => g));
+  const strands = generateHair({ meshes: headMeshes, F: frame, collider, center: headCenter }, S);
+  guides = kept.concat(strands.map((st) => { const g = newGuide(st.pts, st.n, st.type, st.layer, st.group); g.wScale = st.w; return g; }));
+  const hc = HAIR_COLORS[S.color] || HAIR_COLORS.darkbrown; P.rootColor = hc[1]; P.tipColor = hc[2];
+  P.activeGroup = 0; topoDirty = hairDirty = true; resetSim(); computeCrown();
+  applyShading(); refreshUI(); bakeTexture(); updateFlowLines();
+  setHint(`«${(STYLE_PRESETS.find((x) => x.id === S.preset) || {}).name || 'مخصص'}»: ${strands.length} مسار في ${(performance.now() - t0).toFixed(0)}ms (خبز النسيج ${lastBake.toFixed(0)}ms).`);
+}
+function applyPreset(id) {
+  const pr = STYLE_PRESETS.find((x) => x.id === id) || STYLE_PRESETS[0];
+  const keep = { texRes: S.texRes, view: S.view, showFlow: S.showFlow, auto: S.auto };
+  const d = clone(STYLE_DEFAULTS), o = clone(pr);
+  const regArr = S.reg; // sliders hold this array, so refill it in place
+  Object.assign(S, d, o, keep, { card: { ...d.card, ...(o.card || {}) }, preset: pr.id });
+  regArr.splice(0, regArr.length, ...(o.reg || d.reg)); S.reg = regArr;
+  maskPainted = false;
+  generateStyle();
+}
+function bakeTexture() {
+  if (!frame) return;
+  const t0 = performance.now(), hc = HAIR_COLORS[S.color] || HAIR_COLORS.darkbrown;
+  const cv = bakeHeadTexture(headMeshes, frame, { ...S, skin: (SKIN_TONES[S.skin] || SKIN_TONES.portrait)[1], hairRoot: hc[1] }, S.texRes);
+  if (headTex) headTex.dispose();
+  headTex = new THREE.CanvasTexture(cv); headTex.colorSpace = THREE.SRGBColorSpace; headTex.anisotropy = 8;
+  lastBake = performance.now() - t0;
+  applyHeadView();
+}
+function applyHeadView() {
+  if (!checkerTex) { checkerTex = new THREE.CanvasTexture(checkerCanvas()); checkerTex.colorSpace = THREE.SRGBColorSpace; }
+  if (S.view === 'regions' && frame) regionColors(headMeshes, frame, S);
+  for (const m of headMeshes) {
+    m.material.map = S.view === 'texture' ? headTex : S.view === 'uv' ? checkerTex : null;
+    m.userData.textured = !!m.material.map;
+    m.userData.viewColors = S.view === 'regions' ? m.userData.regionColors : null;
+    m.material.roughness = 0.62; m.material.needsUpdate = true;
+    refreshMaskColors(m, P.showMask);
+  }
+}
+let genTimer = 0, bakeTimer = 0;
+const scheduleGen = () => { if (!S.auto) return; clearTimeout(genTimer); genTimer = setTimeout(() => generateStyle(), 380); };
+const scheduleBake = () => { clearTimeout(bakeTimer); bakeTimer = setTimeout(bakeTexture, 250); };
+const hairlineChanged = () => { maskPainted = false; applyRegionMask(); if (S.view === 'regions') applyHeadView(); updateFlowLines(); scheduleGen(); };
+
+const flowGeo = new THREE.BufferGeometry();
+const flowLines = new THREE.LineSegments(flowGeo, new THREE.LineBasicMaterial({ vertexColors: true, depthTest: true }));
+flowLines.frustumCulled = false; flowLines.renderOrder = 4; flowLines.matrixAutoUpdate = false; scene.add(flowLines);
+function updateFlowLines() {
+  flowLines.visible = !!S.showFlow && !!frame;
+  if (!flowLines.visible) return;
+  const P3 = [], C3 = [], q = new THREE.Vector3(), p = new THREE.Vector3(), n = new THREE.Vector3(), d = new THREE.Vector3(), c = new THREE.Color();
+  const cols = REGION_INFO.map((r) => new THREE.Color(r[1])), L = 0.045 * frame.R / 0.8875;
+  for (const m of headMeshes) {
+    const pos = m.geometry.attributes.position, nor = m.geometry.attributes.normal, step = Math.max(1, Math.round(pos.count / 9000));
+    for (let i = 0; i < pos.count; i += step) {
+      toRef(p.fromBufferAttribute(pos, i), frame, q);
+      const r = regionAt(q, S); if (!r.id || r.w < 0.4) continue;
+      n.fromBufferAttribute(nor, i); follicleDir(q, n, r.id, S, d);
+      p.addScaledVector(n, 0.006); c.copy(cols[r.id]);
+      P3.push(p.x, p.y, p.z, p.x + d.x * L, p.y + d.y * L, p.z + d.z * L);
+      C3.push(c.r * 0.35, c.g * 0.35, c.b * 0.35, c.r, c.g, c.b);
+    }
+  }
+  flowGeo.setAttribute('position', new THREE.Float32BufferAttribute(P3, 3));
+  flowGeo.setAttribute('color', new THREE.Float32BufferAttribute(C3, 3));
+}
+
 /* ---------------- sim ---------------- */
 const M = new THREE.Matrix4(), Mi = new THREE.Matrix4(), vtmp = new THREE.Vector3();
 function resetSim() { guides.forEach((g) => { g.sim = null; }); M.identity(); Mi.identity(); headGroup.matrix.identity(); headGroup.matrixWorldNeedsUpdate = true; SIM.t = 0; }
@@ -307,7 +410,7 @@ function simStep(dt) {
     const a = Math.sin(SIM.t * 2.4) * 0.45 + Math.sin(SIM.t * 5.1) * 0.08;
     M.makeRotationY(a); M.setPosition(Math.sin(SIM.t * 2.4 + 1) * 0.08, 0, 0);
   } else M.identity();
-  Mi.copy(M).invert(); headGroup.matrix.copy(M); headGroup.matrixWorldNeedsUpdate = true;
+  Mi.copy(M).invert(); headGroup.matrix.copy(M); headGroup.matrixWorldNeedsUpdate = true; flowLines.matrix.copy(M); flowLines.matrixWorldNeedsUpdate = true;
   const ws = SIM.wind * (0.6 + 0.4 * Math.sin(SIM.t * 1.3)), dt2 = dt * dt;
   for (const g of guides) {
     if (!g.sim) { const p = new Float32Array(g.pts.length); p.set(g.pts); g.sim = { p, pr: p.slice() }; }
@@ -444,6 +547,7 @@ canvas.addEventListener('pointermove', (e) => {
 const end = (e) => {
   if (!stroke) return;
   if (P.tool === 'draw') finishDraw();
+  if (P.tool === 'mask' && stroke.undo) { maskPainted = true; scheduleBake(); }
   if (P.tool === 'mask' || P.tool === 'spray' || P.tool === 'draw') computeCrown();
   stroke = null; strokeGeo.setDrawRange(0, 0);
 };
@@ -640,9 +744,61 @@ function brushOp(tool, cx, cy, dx, dy, shift) {
 }
 
 /* ---------------- tabs / panels ---------------- */
-const tabEls = mkTabs($('tabs'), $('tabBody'), [['grp', 'المجموعات'], ['g', 'المسارات'], ['c', 'البطاقات'], ['s', 'الخامة'], ['l', 'الإضاءة'], ['p', 'فيزياء'], ['x', 'ملفات']]);
+const tabEls = mkTabs($('tabs'), $('tabBody'), [['st', 'تسريحة ذكية'], ['grp', 'المجموعات'], ['g', 'المسارات'], ['c', 'البطاقات'], ['s', 'الخامة'], ['l', 'الإضاءة'], ['p', 'فيزياء'], ['x', 'ملفات']]);
 const dirty = () => { hairDirty = true; };
 const topo = () => { topoDirty = hairDirty = true; };
+{
+  const p = tabEls('st');
+  h3(p, 'الأنماط الجاهزة');
+  const grid = document.createElement('div'); grid.className = 'presets'; p.appendChild(grid);
+  const pbtn = STYLE_PRESETS.map((pr) => { const b = document.createElement('button'); b.textContent = pr.name; b.onclick = () => applyPreset(pr.id); grid.appendChild(b); return [pr.id, b]; });
+  onRefresh(() => pbtn.forEach(([id, b]) => b.classList.toggle('on', id === S.preset)));
+  const big = buttons(p, [['⟳ توليد التسريحة', () => generateStyle()]]); big.firstChild.className = 'big';
+  check(p, S, 'auto', 'تحديث تلقائي عند التعديل');
+  const custom = (f) => () => { S.preset = 'custom'; refreshUI(); f(); };
+  const g = custom(scheduleGen);
+  h3(p, 'تخصيص سريع');
+  select(p, S, 'style', 'اتجاه التسريح', () => [['natural', 'طبيعي (اتجاه البصيلات)'], ['up', 'مرفوع للأعلى/الخلف'], ['back', 'مسحوب للخلف'], ['forward', 'للأمام (غرّة)'], ['side', 'جانبي'], ['down', 'منسدل'], ['afro', 'منفوش (أفرو)']], g);
+  select(p, S, 'part', 'الفرق', () => [['none', 'بدون'], ['center', 'وسط'], ['left', 'يسار'], ['right', 'يمين']], g);
+  slider(p, S, 'len', 'الطول العام', 0, 2, 0.01, g);
+  slider(p, S, 'count', 'الكثافة (مسارات)', 0, 2000, 10, g);
+  slider(p, S, 'lift', 'الحجم / الرفع', 0, 1, 0.01, g);
+  slider(p, S, 'gravity', 'الانسدال', 0, 1.5, 0.01, g);
+  slider(p, S, 'wave', 'التموّج', 0, 1.2, 0.01, g);
+  slider(p, S, 'curl', 'التجعيد', 0, 1.5, 0.01, g);
+  slider(p, S, 'curlFreq', 'ضيق اللفات', 2, 18, 0.1, g);
+  slider(p, S, 'frizz', 'الهيشان', 0, 0.3, 0.005, g);
+  select(p, S, 'color', 'لون الشعر', () => Object.entries(HAIR_COLORS).map(([k, v]) => [k, v[0]]), custom(() => { const hc = HAIR_COLORS[S.color]; P.rootColor = hc[1]; P.tipColor = hc[2]; applyShading(); refreshUI(); scheduleBake(); }));
+  select(p, S, 'skin', 'لون البشرة', () => Object.entries(SKIN_TONES).map(([k, v]) => [k, v[0]]), scheduleBake);
+  h3(p, 'أجزاء الرأس (طول نسبي لكل جزء)');
+  ['المقدمة', 'الأعلى', 'التاج', 'الجانبان', 'الخلف', 'القفا', 'السوالف'].forEach((nm, i) => slider(p, S.reg, i, nm, 0, 2, 0.01, g));
+  h3(p, 'خط الشعر والبصيلات');
+  slider(p, S, 'recede', 'انحسار الجبهة', -0.3, 1, 0.01, custom(hairlineChanged));
+  slider(p, S, 'napeUp', 'ارتفاع القفا', -0.2, 1, 0.01, custom(hairlineChanged));
+  slider(p, S, 'sideburn', 'طول السوالف', 0, 0.6, 0.01, custom(hairlineChanged));
+  slider(p, S, 'swirl', 'دوران الدوامة', -2, 2, 0.01, custom(() => { updateFlowLines(); scheduleGen(); }));
+  slider(p, S, 'whorlX', 'موضع الدوامة', -0.3, 0.3, 0.005, custom(() => { updateFlowLines(); scheduleGen(); }));
+  h3(p, 'شعر الوجه');
+  select(p, S, 'brows', 'الحواجب', () => [['none', 'بدون'], ['thin', 'رفيعة'], ['natural', 'طبيعية'], ['thick', 'كثيفة']], g);
+  slider(p, S, 'browThick', 'سماكة الحاجب', 0.5, 1.8, 0.01, custom(hairlineChanged));
+  select(p, S, 'mous', 'الشارب', () => [['none', 'بدون'], ['thin', 'خفيف'], ['full', 'كامل'], ['chevron', 'كثيف (شيفرون)']], g);
+  select(p, S, 'beard', 'اللحية', () => [['none', 'بدون'], ['stubble', 'خفيفة (نسيج فقط)'], ['short', 'قصيرة'], ['full', 'كاملة'], ['goatee', 'سكسوكة'], ['chinstrap', 'على خط الفك']], g);
+  slider(p, S, 'beardLen', 'طول اللحية', 0.01, 0.4, 0.005, g);
+  slider(p, S, 'beardCurl', 'تجعيد اللحية', 0, 1.5, 0.01, g);
+  slider(p, S, 'beardCheek', 'نزول خط الخد', -0.3, 1, 0.01, custom(hairlineChanged));
+  slider(p, S, 'beardNeck', 'امتداد الرقبة', 0, 1, 0.01, custom(hairlineChanged));
+  h3(p, 'سد الفراغات');
+  slider(p, S, 'scalpTex', 'نسيج الفروة', 0, 1, 0.01, scheduleBake);
+  slider(p, S, 'inner', 'طبقة داخلية', 0, 1, 0.01, g);
+  select(p, S, 'texRes', 'دقة النسيج', () => [[1024, '1024'], [2048, '2048'], [4096, '4096']], scheduleBake);
+  buttons(p, [['إعادة خبز النسيج', bakeTexture], ['تصدير النسيج PNG', exportHeadTex], ['تصدير الرأس GLB (UV)', exportHeadGLB]]);
+  h3(p, 'العرض');
+  select(p, S, 'view', 'سطح الرأس', () => [['texture', 'النسيج المخبوز'], ['regions', 'أجزاء الرأس'], ['uv', 'UV Checker'], ['clay', 'طين']], applyHeadView);
+  check(p, S, 'showFlow', 'اتجاه البصيلات', updateFlowLines);
+  const lg = document.createElement('div'); lg.className = 'legend'; p.appendChild(lg);
+  REGION_INFO.forEach(([nm, col]) => { const s2 = document.createElement('span'); s2.innerHTML = `<i style="background:${col}"></i>${nm}`; lg.appendChild(s2); });
+  note(p, 'الرأس يُقسَّم تلقائياً إلى أجزاء (حتى الوجه)، ولكل جزء نمط بصيلات طبيعي: دوامة التاج، تقارب القفا، سوالف للأسفل، حواجب وشارب ولحية باتجاهاتها. الجذر يتبع البصيلة ثم ينحني لاتجاه التسريح.');
+}
 {
   const p = tabEls('grp');
   h3(p, 'مجموعات الشعر');
@@ -919,6 +1075,19 @@ function exportOBJ() {
   }
   download('hair-cards.obj', s.join('\n'), 'text/plain');
 }
+function exportHeadTex() { if (!headTex) bakeTexture(); headTex.image.toBlob((b) => download('head-texture.png', b, 'image/png')); }
+function exportHeadGLB() {
+  if (!headTex) bakeTexture();
+  const root = new THREE.Group(); root.name = 'Head';
+  const tx = new THREE.CanvasTexture(headTex.image); tx.colorSpace = THREE.SRGBColorSpace;
+  const mat = new THREE.MeshStandardMaterial({ map: tx, roughness: 0.62 });
+  headMeshes.forEach((m, i) => {
+    const g = new THREE.BufferGeometry();
+    for (const k of ['position', 'normal', 'uv']) g.setAttribute(k, m.geometry.attributes[k].clone());
+    g.setIndex(m.geometry.index.clone()); const me = new THREE.Mesh(g, mat); me.name = 'Head_' + i; root.add(me);
+  });
+  new GLTFExporter().parse(root, (buf) => download('head-uv.glb', buf, 'model/gltf-binary'), (e) => setHint('فشل التصدير: ' + e), { binary: true });
+}
 function exportCurves() {
   const s = ['# Hair guide curves (polylines)'];
   guides.forEach((g, gi) => {
@@ -936,46 +1105,24 @@ async function importModel(file) {
   } catch (err) { setHint('تعذر قراءة الموديل: ' + err.message); return; }
   const res = bakeImported(root);
   if (!res) { setHint('لا يحتوي الملف على مجسمات.'); return; }
-  setHead(res); setHint('تم استيراد الموديل. ارسم منطقة الفروة ثم ولّد المسارات. ضبط «ارتفاع مركز الرأس» في تبويب البطاقات.');
+  setHead(res); generateStyle({ undo: false });
+  setHint('تم استيراد الموديل وتقسيمه إلى أجزاء وتوليد التسريحة الحالية. يُفترض أن الوجه نحو +Z والأعلى +Y. اعرض «أجزاء الرأس» للتحقق.');
 }
 $('bImport').onclick = () => $('fModel').click();
 $('fModel').onchange = (e) => { if (e.target.files[0]) importModel(e.target.files[0]); e.target.value = ''; };
-$('bHead').onclick = () => { skin.color = null; setHead(makeProceduralHead()); };
+$('bHead').onclick = () => { skin.color = null; setHead(makeProceduralHead()); generateStyle({ undo: false }); };
 $('bPortrait').onclick = () => loadPortrait();
 
 function loadPortrait() {
   skin.color = null;
-  Object.assign(P, PORTRAIT.PARAMS);
-  groups = PORTRAIT.GROUPS.map((g) => mkGroup(g.name, g.color, g)); P.activeGroup = 0;
+  Object.assign(P, SHADE);
   setHead(PORTRAIT.loadPortraitHead());
   headExtras = PORTRAIT.makeEyes(); headGroup.add(headExtras);
-  const v = new THREE.Vector3(), c = new THREE.Color();
-  for (const m of headMeshes) {
-    const pos = m.geometry.attributes.position, base = new Float32Array(pos.count * 3);
-    for (let i = 0; i < pos.count; i++) {
-      v.fromBufferAttribute(pos, i);
-      m.userData.mask[i] = PORTRAIT.maskAt(v);
-      PORTRAIT.skinAt(v, c); base.set([c.r, c.g, c.b], i * 3);
-    }
-    m.userData.base = base; m.material.roughness = 0.62; refreshMaskColors(m, P.showMask);
-  }
-  computeCrown();
-  generateFromMask(PORTRAIT.scalpStyle);
-  const castFront = (x, y) => {
-    ray.set(new THREE.Vector3(x, y, 3), new THREE.Vector3(0, 0, -1));
-    const h = ray.intersectObjects(headMeshes, false)[0];
-    return h ? { point: h.point, n: h.face.normal.clone() } : null;
-  };
-  for (const f of PORTRAIT.facialStrands(castFront)) {
-    if (tooClose(f.root) && f.group === 0) continue;
-    const pts = genGuide(f.root, f.n, f.dir.addScaledVector(f.n, -f.dir.dot(f.n)).normalize(), f.len, { ...P, lift: f.lift, gravity: 0.05, wave: f.wave, cling: 0 }, collider);
-    const g = newGuide(pts, f.n, 5, 2, f.group); g.wScale = f.w * (0.8 + Math.random() * 0.4); guides.push(g);
-  }
-  topoDirty = hairDirty = true; undoStack.length = 0;
   presetCols = PRESETS.portrait; Object.assign(L, PRESETS.portrait.v, { preset: 'portrait' });
-  applyLights(); applyShading(); refreshUI();
+  applyLights();
+  applyPreset(S.preset === 'custom' ? 'portrait' : S.preset);
+  undoStack.length = 0;
   controls.target.set(0, 0.45, 0.1); camera.position.set(0, 0.5, 6.2); controls.update();
-  setHint('مثال البورتريه: MaleHead.obj + شعر مموج مرفوع للخلف، حواجب وشارب. عدّل بالفرشاة أو من التبويبات.');
 }
 $('bNew').onclick = () => { if (!guides.length || confirm('مسح كل المسارات؟')) { pushUndo(); guides = []; topo(); } };
 $('bUndo').onclick = undo; $('bRedo').onclick = redo;
@@ -1009,8 +1156,8 @@ function renderFrame() {
   headGroup.visible = P.showHead;
   renderer.render(scene, camera);
 }
-function frame(now) {
-  requestAnimationFrame(frame);
+function tick(now) {
+  requestAnimationFrame(tick);
   const dt = Math.min(0.033, (now - lastT) / 1000); lastT = now;
   if (SIM.on) simStep(dt);
   if (hairDirty) { rebuild(); }
@@ -1031,6 +1178,6 @@ function frame(now) {
   applyLights(); applyShading(); setTool('spray'); refreshUI();
   await loadAtlas();
   loadPortrait();
-  requestAnimationFrame(frame);
-  window.__hair = { loadPortrait, get groups() { return groups; }, P, L, SIM, get guides() { return guides; }, camera, controls, setTool, generateFromMask, setHead, makeProceduralHead, applyShading, applyLights, brushOp, undo, redo };
+  requestAnimationFrame(tick);
+  window.__hair = { rebuildEyes: (o) => { if (headExtras) headGroup.remove(headExtras); headExtras = PORTRAIT.makeEyes(o); headGroup.add(headExtras); }, loadPortrait, applyPreset, generateStyle, bakeTexture, applyHeadView, updateFlowLines, S, get frame() { return frame; }, get groups() { return groups; }, P, L, SIM, get guides() { return guides; }, camera, controls, setTool, generateFromMask, setHead, makeProceduralHead, applyShading, applyLights, brushOp, undo, redo };
 })();

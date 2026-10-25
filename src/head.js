@@ -3,6 +3,7 @@ import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 const CLAY = new THREE.Color(0.62, 0.55, 0.5);
 export const skin = { color: null };
+const WHITE = new THREE.Color(1, 1, 1);
 export const MASK_COLOR = new THREE.Color(0.85, 0.28, 0.32);
 
 const sstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
@@ -57,8 +58,10 @@ export function makePaintable(geo) {
 }
 
 export function refreshMaskColors(mesh, show = true) {
-  const m = mesh.userData.mask, c = mesh.geometry.attributes.color, base = mesh.userData.base;
-  const B = skin.color || CLAY;
+  const m = mesh.userData.mask, c = mesh.geometry.attributes.color;
+  const vc = mesh.userData.viewColors, white = mesh.userData.textured;
+  const base = vc || (white ? null : mesh.userData.base);
+  const B = white ? WHITE : skin.color || CLAY;
   for (let i = 0; i < m.length; i++) {
     const k = show ? m[i] * 0.55 : 0;
     const r = base ? base[i * 3] : B.r, g = base ? base[i * 3 + 1] : B.g, b = base ? base[i * 3 + 2] : B.b;
