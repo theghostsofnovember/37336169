@@ -8,7 +8,7 @@ import { N, MAX_GUIDES, CARD_TYPES, CardBuilder, newGuide, computeSeg, enforceLe
 import { makeProceduralHead, bakeImported, Collider, refreshMaskColors, skin } from './head.js';
 import * as PORTRAIT from './portrait.js';
 import { makeHairMaterial } from './shader.js';
-import { mkTabs, head as h3, note, slider, check, color, select, buttons, refreshUI } from './ui.js';
+import { mkTabs, head as h3, note, slider, check, color, select, buttons, refreshUI, onRefresh } from './ui.js';
 
 const $ = (id) => document.getElementById(id);
 const canvas = $('cv'), view = $('view'), ring = $('ring'), hint = $('hint');
@@ -82,15 +82,36 @@ const headGroup = new THREE.Group(); headGroup.matrixAutoUpdate = false; scene.a
 let headMeshes = [], collider = null, headCenter = new THREE.Vector3(), crown = new THREE.Vector3(0, 1, 0);
 const ctypes = CARD_TYPES.slice();
 
+/* ---------------- hair groups ---------------- */
+// Per-group card settings; the Cards tab edits the active group's copy.
+const CARD_KEYS = ['perGuide', 'fill', 'width', 'widthVar', 'taper', 'rootW', 'spread', 'fan', 'twist', 'noise', 'layerGap', 'fly', 'segs', 'vol', 'curve', 'uvVar'];
+const pickCard = (src) => Object.fromEntries(CARD_KEYS.map((k) => [k, src[k]]));
+const mkGroup = (name, color, o = {}) => ({ name, color, visible: true, lockPhys: false, lockEdit: false, tint: '#ffffff', bright: 1, stiff: 1, ...o, card: { ...pickCard(P), ...(o.card || {}) } });
+let groups = [mkGroup('شعر الرأس', '#2ee6a0')];
+P.activeGroup = 0; P.activeOnly = true;
+const GP = new Proxy({}, {
+  get: (_, k) => (groups[P.activeGroup] || groups[0]).card[k],
+  set: (_, k, v) => { (groups[P.activeGroup] || groups[0]).card[k] = v; return true; },
+});
+const AG = new Proxy({}, {
+  get: (_, k) => (groups[P.activeGroup] || groups[0])[k],
+  set: (_, k, v) => { (groups[P.activeGroup] || groups[0])[k] = v; return true; },
+});
+const grpOf = (g) => groups[g.group] || groups[0];
+const editable = (g) => { const gr = grpOf(g); return gr.visible && !gr.lockEdit && (!P.activeOnly || g.group === P.activeGroup); };
+const activeLocked = () => { const gr = groups[P.activeGroup]; return !gr || gr.lockEdit || !gr.visible; };
+
 /* ---------------- guides + undo ---------------- */
 let guides = [], neigh = [], topoDirty = true, hairDirty = true;
 const undoStack = [], redoStack = [];
 const snapshot = () => ({
   guides: guides.map((g) => ({ pts: g.pts.slice(), n: g.normal.toArray(), type: g.type, layer: g.layer, w: g.wScale, seed: g.seed, group: g.group })),
   masks: headMeshes.map((m) => m.userData.mask.slice()),
+  groups: JSON.parse(JSON.stringify(groups)), active: P.activeGroup,
 });
 const restore = (s) => {
   guides = s.guides.map((o) => { const g = newGuide(o.pts.slice(), new THREE.Vector3().fromArray(o.n), o.type, o.layer, o.group || 0); g.wScale = o.w; g.seed = o.seed; return g; });
+  if (s.groups) { groups = JSON.parse(JSON.stringify(s.groups)); P.activeGroup = Math.min(s.active || 0, groups.length - 1); refreshUI(); }
   headMeshes.forEach((m, i) => { if (s.masks[i] && s.masks[i].length === m.userData.mask.length) { m.userData.mask.set(s.masks[i]); refreshMaskColors(m, P.showMask); } });
   topoDirty = hairDirty = true; resetSim();
 };
@@ -217,12 +238,13 @@ function flowDir(root, n, out = new THREE.Vector3()) {
 function addGuide(pts, n, mirror = P.symmetry) {
   if (guides.length >= MAX_GUIDES) return;
   const layer = P.layerMix ? [0, 1, 1, 2][Math.floor(Math.random() * 4)] : P.layer;
-  const g = newGuide(pts, n, P.type, layer); g.wScale = 0.85 + Math.random() * 0.3;
+  const grp = P.activeGroup;
+  const g = newGuide(pts, n, P.type, layer, grp); g.wScale = 0.85 + Math.random() * 0.3;
   guides.push(g);
   if (mirror) {
     const m = pts.slice(); for (let i = 0; i < N; i++) m[i * 3] = -m[i * 3];
     if (Math.abs(pts[0]) > 0.015 && guides.length < MAX_GUIDES) {
-      const g2 = newGuide(m, new THREE.Vector3(-n.x, n.y, n.z), P.type, layer); g2.wScale = 0.85 + Math.random() * 0.3; guides.push(g2);
+      const g2 = newGuide(m, new THREE.Vector3(-n.x, n.y, n.z), P.type, layer, grp); g2.wScale = 0.85 + Math.random() * 0.3; guides.push(g2);
     }
   }
   topoDirty = hairDirty = true;
@@ -289,7 +311,13 @@ function simStep(dt) {
   const ws = SIM.wind * (0.6 + 0.4 * Math.sin(SIM.t * 1.3)), dt2 = dt * dt;
   for (const g of guides) {
     if (!g.sim) { const p = new Float32Array(g.pts.length); p.set(g.pts); g.sim = { p, pr: p.slice() }; }
-    const { p, pr } = g.sim, q = g.pts;
+    const { p, pr } = g.sim, q = g.pts, gr = grpOf(g);
+    if (gr.lockPhys) {
+      // locked groups (brows, moustache…) stay rigidly attached to the head
+      for (let i = 0; i < N; i++) { const k = i * 3; vtmp.set(q[k], q[k + 1], q[k + 2]).applyMatrix4(M); p[k] = pr[k] = vtmp.x; p[k + 1] = pr[k + 1] = vtmp.y; p[k + 2] = pr[k + 2] = vtmp.z; }
+      continue;
+    }
+    const stiff = Math.min(1, SIM.stiff * gr.stiff);
     vtmp.set(q[0], q[1], q[2]).applyMatrix4(M); p[0] = pr[0] = vtmp.x; p[1] = pr[1] = vtmp.y; p[2] = pr[2] = vtmp.z;
     for (let i = 1; i < N; i++) {
       const k = i * 3, f = i / (N - 1);
@@ -298,7 +326,7 @@ function simStep(dt) {
         const v = (p[k + a] - pr[k + a]) * SIM.damp; pr[k + a] = p[k + a];
         const ext = a === 1 ? -SIM.gravity * 9 * dt2 : a === 0 ? ws * 9 * dt2 * (0.3 + f) : ws * 3 * dt2 * f;
         const rest = [vtmp.x, vtmp.y, vtmp.z][a];
-        p[k + a] += v + ext + (rest - p[k + a]) * SIM.stiff * (1.05 - f * 0.85) * 0.5;
+        p[k + a] += v + ext + (rest - p[k + a]) * stiff * (1.05 - f * 0.85) * 0.5;
       }
     }
     for (let it = 0; it < 2; it++) {
@@ -317,7 +345,7 @@ const LC = [[0.4, 0.7, 1], [1, 0.82, 0.3], [1, 0.5, 0.75]];
 let stats = { cards: 0, tris: 0, ms: 0 };
 const tc = new THREE.Vector3();
 function rebuild() {
-  if (topoDirty) { neigh = P.fill > 0 ? neighbours(guides) : []; topoDirty = false; }
+  if (topoDirty) { neigh = groups.some((gr) => gr.card.fill > 0) ? neighbours(guides) : []; topoDirty = false; }
   const t0 = performance.now(), simOn = SIM.on;
   tc.copy(headCenter); tc.y += P.centerLift; if (simOn) tc.applyMatrix4(M);
   const nv = new THREE.Vector3();
@@ -325,22 +353,33 @@ function rebuild() {
     getPts: (g) => (simOn && g.sim ? g.sim.p : g.pts),
     getNormal: (g) => (simOn ? nv.copy(g.normal).transformDirection(M).clone() : g.normal),
     center: tc, neigh, types: ctypes,
+    skip: (g) => !grpOf(g).visible,
+    params: groups.map((gr) => {
+      const t = new THREE.Color(gr.tint).multiplyScalar(gr.bright);
+      const q = { ...P, ...gr.card, tintRGB: [t.r, t.g, t.b] };
+      if (!neigh.length) q.fill = 0;
+      if (simOn) q.segs = Math.min(q.segs, 7);
+      return q;
+    }),
   };
-  const fillBak = P.fill; if (!neigh.length) P.fill = 0;
-  stats = builder.build(guides, simOn ? { ...P, segs: Math.min(P.segs, 7) } : P, ctx); P.fill = fillBak; stats.ms = performance.now() - t0;
-  let li = 0;
+  stats = builder.build(guides, P, ctx); stats.ms = performance.now() - t0;
+  let li = 0, ri = 0;
+  const gc = groups.map((gr) => new THREE.Color(gr.color));
   for (let gi = 0; gi < guides.length; gi++) {
-    const g = guides[gi], pts = ctx.getPts(g), c = LC[g.layer] || LC[1];
+    const g = guides[gi], gr = grpOf(g);
+    if (!gr.visible) continue;
+    const pts = ctx.getPts(g), cc = gc[g.group] || gc[0], dim = (P.activeOnly && g.group !== P.activeGroup) || gr.lockEdit ? 0.35 : 1;
+    const c = [cc.r * dim, cc.g * dim, cc.b * dim];
     for (let i = 0; i < N - 1; i++) {
       const a = i * 3, b = a + 3, k = li * 6;
       linePos.array.set([pts[a], pts[a + 1], pts[a + 2], pts[b], pts[b + 1], pts[b + 2]], k);
       const f = 0.45 + 0.55 * (1 - i / N);
       lineCol.array.set([c[0] * f, c[1] * f, c[2] * f, c[0] * f, c[1] * f, c[2] * f], k); li++;
     }
-    rootPos.array[gi * 3] = pts[0]; rootPos.array[gi * 3 + 1] = pts[1]; rootPos.array[gi * 3 + 2] = pts[2];
+    rootPos.array[ri * 3] = pts[0]; rootPos.array[ri * 3 + 1] = pts[1]; rootPos.array[ri * 3 + 2] = pts[2]; ri++;
   }
   linePos.needsUpdate = lineCol.needsUpdate = rootPos.needsUpdate = true;
-  lineGeo.setDrawRange(0, li * 2); rootGeo.setDrawRange(0, guides.length);
+  lineGeo.setDrawRange(0, li * 2); rootGeo.setDrawRange(0, ri);
   hairDirty = false;
 }
 
@@ -353,6 +392,7 @@ const TOOLS = [
   ['length', 'الطول', 'L', 'يزيد الطول؛ Shift لتقصيره.'],
   ['puff', 'رفع / كثافة', 'P', 'يرفع المسارات عن الفروة؛ Shift لخفضها.'],
   ['erase', 'حذف', 'E', 'يحذف المسارات تحت الفرشاة.'],
+  ['assign', 'نقل للمجموعة', 'G', 'ينقل المسارات تحت الفرشاة إلى المجموعة النشطة (مثل اختيار منحنيات في Blender).'],
   ['mask', 'رسم منطقة الفروة', 'M', 'ارسم المنطقة التي ينمو منها الشعر؛ Shift للمسح.'],
 ];
 const toolBox = $('tools');
@@ -389,6 +429,7 @@ canvas.addEventListener('pointerdown', (e) => {
   stroke = { x: e.clientX, y: e.clientY, lx: e.clientX, ly: e.clientY, undo: false, pts: [], nrm: [], air: false, lastHit: null };
   const t = P.tool;
   if (t === 'draw') {
+    if (activeLocked()) { stroke = null; setHint('المجموعة النشطة مقفلة للتحرير أو مخفية.'); return; }
     screenRay(e.clientX, e.clientY); const h = surfaceHit();
     if (!h) { stroke = null; setHint('ابدأ الرسم من فوق سطح الرأس.'); return; }
     stroke.pts.push(h.point.clone()); stroke.nrm.push(h.face.normal.clone()); updateStrokeLine();
@@ -426,6 +467,7 @@ function updateStrokeLine() {
 
 function apply(e, first) {
   const t = P.tool;
+  if (t !== 'mask' && first && ['draw', 'spray'].includes(t) && activeLocked()) { setHint('المجموعة النشطة مقفلة للتحرير أو مخفية.'); stroke = null; return; }
   if (t === 'draw') return drawMove(e);
   if (t === 'mask') return paintMask(e);
   const dx = e.clientX - stroke.lx, dy = e.clientY - stroke.ly;
@@ -525,6 +567,7 @@ function brushOp(tool, cx, cy, dx, dy, shift) {
   const erase = [];
   for (let gi = 0; gi < guides.length; gi++) {
     const g = guides[gi], p = g.pts;
+    if (tool === 'assign') { const gr = grpOf(g); if (!gr.visible || gr.lockEdit || g.group === P.activeGroup) continue; } else if (!editable(g)) continue;
     let gw = 0;
     for (const mx of passes) {
       if (P.frontOnly) {
@@ -544,7 +587,7 @@ function brushOp(tool, cx, cy, dx, dy, shift) {
       }
       if (!any) continue;
       touched = true;
-      if (tool === 'erase') { gw = 1; continue; }
+      if (tool === 'erase' || tool === 'assign') { gw = 1; continue; }
       if (tool === 'comb') {
         for (let i = 1; i < N; i++) {
           const [w, dist] = ws[i - 1]; if (!w) continue;
@@ -583,6 +626,7 @@ function brushOp(tool, cx, cy, dx, dy, shift) {
     if (gw > 0) {
       if (!stroke.undo) { pushUndo(); stroke.undo = true; }
       if (tool === 'erase') erase.push(gi);
+      else if (tool === 'assign') { g.group = P.activeGroup; topoDirty = true; }
       else {
         if (tool !== 'length') enforceLengths(g);
         for (let i = 1; i < N; i++) { q.set(p[i * 3], p[i * 3 + 1], p[i * 3 + 2]); if (collider.push(q, 0.013)) { p[i * 3] = q.x; p[i * 3 + 1] = q.y; p[i * 3 + 2] = q.z; } }
@@ -596,9 +640,74 @@ function brushOp(tool, cx, cy, dx, dy, shift) {
 }
 
 /* ---------------- tabs / panels ---------------- */
-const tabEls = mkTabs($('tabs'), $('tabBody'), [['g', 'المسارات'], ['c', 'البطاقات'], ['s', 'الخامة'], ['l', 'الإضاءة'], ['p', 'فيزياء'], ['x', 'ملفات']]);
+const tabEls = mkTabs($('tabs'), $('tabBody'), [['grp', 'المجموعات'], ['g', 'المسارات'], ['c', 'البطاقات'], ['s', 'الخامة'], ['l', 'الإضاءة'], ['p', 'فيزياء'], ['x', 'ملفات']]);
 const dirty = () => { hairDirty = true; };
 const topo = () => { topoDirty = hairDirty = true; };
+{
+  const p = tabEls('grp');
+  h3(p, 'مجموعات الشعر');
+  const list = document.createElement('div'); p.appendChild(list);
+  let countEls = [];
+  const tg = (gr, key, label, title, after) => {
+    const b = document.createElement('button'); b.textContent = label; b.title = title;
+    b.classList.toggle('on', !!gr[key]);
+    b.onclick = (e) => { e.stopPropagation(); gr[key] = !gr[key]; b.classList.toggle('on', gr[key]); after && after(); hairDirty = true; refreshUI(); };
+    return b;
+  };
+  const render = () => {
+    list.innerHTML = ''; countEls = [];
+    groups.forEach((gr, i) => {
+      const row = document.createElement('div'); row.className = 'grp' + (i === P.activeGroup ? ' act' : '');
+      row.onclick = () => { if (P.activeGroup !== i) { P.activeGroup = i; hairDirty = true; refreshUI(); } };
+      const rd = document.createElement('input'); rd.type = 'radio'; rd.checked = i === P.activeGroup; rd.name = 'ag';
+      const cl = document.createElement('input'); cl.type = 'color'; cl.value = gr.color; cl.title = 'لون عرض المسارات';
+      cl.oninput = () => { gr.color = cl.value; hairDirty = true; }; cl.onclick = (e) => e.stopPropagation();
+      const nm = document.createElement('input'); nm.type = 'text'; nm.value = gr.name;
+      nm.onclick = (e) => e.stopPropagation(); nm.onkeydown = (e) => e.stopPropagation();
+      nm.onchange = () => { gr.name = nm.value || gr.name; refreshUI(); };
+      const t = document.createElement('div'); t.className = 'tg';
+      t.append(tg(gr, 'visible', '👁', 'إظهار/إخفاء'), tg(gr, 'lockPhys', '⚓', 'قفل الفيزياء: لا تتأثر بالرياح أو الجاذبية'), tg(gr, 'lockEdit', '🔒', 'قفل التحرير: لا تتأثر بالفرش'));
+      const sm = document.createElement('small'); countEls[i] = sm;
+      row.append(rd, cl, nm, t, sm); list.appendChild(row);
+    });
+    updateCounts();
+  };
+  const updateCounts = () => {
+    const c = groups.map(() => 0); guides.forEach((g) => { if (c[g.group] !== undefined) c[g.group]++; });
+    countEls.forEach((el, i) => { const gr = groups[i]; el.textContent = `${c[i]} مسار` + (gr.lockPhys ? ' · فيزياء مقفلة' : '') + (gr.lockEdit ? ' · تحرير مقفل' : '') + (gr.visible ? '' : ' · مخفية'); });
+  };
+  window.__updateGroupCounts = updateCounts;
+  onRefresh(render);
+  buttons(p, [
+    ['+ مجموعة جديدة', () => {
+      pushUndo();
+      const pal = ['#ffd43b', '#ff6b6b', '#74c0fc', '#b197fc', '#63e6be', '#ffa94d'];
+      groups.push(mkGroup(`مجموعة ${groups.length + 1}`, pal[groups.length % pal.length], { card: { ...(groups[P.activeGroup] || groups[0]).card } }));
+      P.activeGroup = groups.length - 1; refreshUI();
+    }],
+    ['تكرار الإعدادات', () => {
+      pushUndo(); const src = groups[P.activeGroup];
+      groups.push({ ...JSON.parse(JSON.stringify(src)), name: src.name + ' ٢' }); P.activeGroup = groups.length - 1; refreshUI();
+    }],
+    ['حذف المجموعة ومساراتها', () => {
+      if (groups.length < 2) return setHint('يجب أن تبقى مجموعة واحدة على الأقل.');
+      const gi = P.activeGroup; if (!confirm(`حذف «${groups[gi].name}» وكل مساراتها؟`)) return;
+      pushUndo();
+      guides = guides.filter((g) => g.group !== gi); guides.forEach((g) => { if (g.group > gi) g.group--; });
+      groups.splice(gi, 1); P.activeGroup = Math.max(0, gi - 1); topoDirty = hairDirty = true; resetSim(); refreshUI();
+    }, 'warn'],
+  ]);
+  check(p, P, 'activeOnly', 'الفرش تعمل على النشطة فقط', () => { hairDirty = true; });
+  note(p, 'أداة «نقل للمجموعة» (G) تنقل المسارات تحت الفرشاة إلى المجموعة النشطة.');
+  h3(p, 'خصائص المجموعة النشطة');
+  color(p, AG, 'tint', 'صبغة اللون', dirty);
+  slider(p, AG, 'bright', 'سطوع', 0, 2.5, 0.01, dirty);
+  check(p, AG, 'lockPhys', 'قفل الفيزياء ⚓', () => { refreshUI(); hairDirty = true; });
+  slider(p, AG, 'stiff', 'صلابة الفيزياء', 0, 3, 0.01);
+  check(p, AG, 'lockEdit', 'قفل التحرير 🔒', () => { refreshUI(); hairDirty = true; });
+  check(p, AG, 'visible', 'ظاهرة', () => { refreshUI(); hairDirty = true; });
+  note(p, 'كل الحقول الرقمية قابلة للكتابة مباشرة لإدخال قيم دقيقة (Enter للتأكيد).');
+}
 {
   const p = tabEls('g');
   h3(p, 'الفرشاة');
@@ -630,26 +739,28 @@ const topo = () => { topoDirty = hairDirty = true; };
 }
 {
   const p = tabEls('c');
+  select(p, P, 'activeGroup', 'المجموعة', () => groups.map((g, i) => [i, g.name]), () => { refreshUI(); hairDirty = true; });
+  note(p, 'إعدادات «الشكل» أدناه خاصة بالمجموعة النشطة.');
   h3(p, 'نوع البطاقة (من الأطلس)');
   select(p, P, 'type', 'النوع', () => ctypes.map((t, i) => [i, t.name]), dirty);
-  buttons(p, [['تطبيق النوع على كل المسارات', () => { pushUndo(); guides.forEach((g) => { g.type = P.type; }); dirty(); }]]);
+  buttons(p, [['تطبيق النوع على مسارات المجموعة', () => { pushUndo(); guides.forEach((g) => { if (g.group === P.activeGroup) g.type = P.type; }); dirty(); }]]);
   h3(p, 'الشكل');
-  slider(p, P, 'perGuide', 'بطاقات لكل مسار', 1, 6, 1, dirty);
-  slider(p, P, 'fill', 'تعبئة بين المسارات', 0, 4, 1, topo);
-  slider(p, P, 'width', 'العرض', 0.02, 0.4, 0.002, dirty);
-  slider(p, P, 'widthVar', 'تباين العرض', 0, 0.8, 0.01, dirty);
-  slider(p, P, 'taper', 'سماكة الطرف', 0.05, 1.2, 0.01, dirty);
-  slider(p, P, 'rootW', 'سماكة الجذر', 0.1, 1.2, 0.01, dirty);
-  slider(p, P, 'spread', 'تباعد البطاقات', 0, 2, 0.01, dirty);
-  slider(p, P, 'fan', 'انفراج نحو الطرف', 0, 2, 0.01, dirty);
-  slider(p, P, 'twist', 'التواء', 0, 2, 0.01, dirty);
-  slider(p, P, 'noise', 'عشوائية', 0, 3, 0.01, dirty);
-  slider(p, P, 'layerGap', 'فاصل الطبقات', 0, 0.03, 0.001, dirty);
-  slider(p, P, 'fly', 'خصلات شاردة', 0, 1, 0.01, dirty);
-  slider(p, P, 'segs', 'التقسيمات', 4, 32, 1, dirty);
-  slider(p, P, 'vol', 'حجم الطبعة (Normal)', 0, 1, 0.01, dirty);
-  slider(p, P, 'curve', 'استدارة المقطع', 0, 1, 0.01, dirty);
-  slider(p, P, 'uvVar', 'تنوع UV', 0, 1, 0.01, dirty);
+  slider(p, GP, 'perGuide', 'بطاقات لكل مسار', 1, 6, 1, dirty);
+  slider(p, GP, 'fill', 'تعبئة بين المسارات', 0, 4, 1, topo);
+  slider(p, GP, 'width', 'العرض', 0.02, 0.4, 0.002, dirty);
+  slider(p, GP, 'widthVar', 'تباين العرض', 0, 0.8, 0.01, dirty);
+  slider(p, GP, 'taper', 'سماكة الطرف', 0.05, 1.2, 0.01, dirty);
+  slider(p, GP, 'rootW', 'سماكة الجذر', 0.1, 1.2, 0.01, dirty);
+  slider(p, GP, 'spread', 'تباعد البطاقات', 0, 2, 0.01, dirty);
+  slider(p, GP, 'fan', 'انفراج نحو الطرف', 0, 2, 0.01, dirty);
+  slider(p, GP, 'twist', 'التواء', 0, 2, 0.01, dirty);
+  slider(p, GP, 'noise', 'عشوائية', 0, 3, 0.01, dirty);
+  slider(p, GP, 'layerGap', 'فاصل الطبقات', 0, 0.03, 0.001, dirty);
+  slider(p, GP, 'fly', 'خصلات شاردة', 0, 1, 0.01, dirty);
+  slider(p, GP, 'segs', 'Resample (نقاط)', 2, 40, 1, dirty);
+  slider(p, GP, 'vol', 'حجم الطبعة (Normal)', 0, 1, 0.01, dirty);
+  slider(p, GP, 'curve', 'استدارة المقطع', 0, 1, 0.01, dirty);
+  slider(p, GP, 'uvVar', 'تنوع UV', 0, 1, 0.01, dirty);
   slider(p, P, 'centerLift', 'ارتفاع مركز الرأس', -1, 1, 0.01, dirty);
   h3(p, 'أطلس مخصص');
   buttons(p, [
@@ -748,13 +859,13 @@ const download = (name, data, type = 'application/octet-stream') => {
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([data], { type })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
 };
 function saveProject() {
-  const prj = { v: 1, P: { ...P }, L: { ...L }, guides: snapshot().guides.map((g) => ({ ...g, pts: Array.from(g.pts, (x) => +x.toFixed(5)) })), masks: headMeshes.map((m) => Array.from(m.userData.mask, (x) => Math.round(x * 100) / 100)) };
+  const prj = { v: 2, P: { ...P }, L: { ...L }, groups, guides: snapshot().guides.map((g) => ({ ...g, pts: Array.from(g.pts, (x) => +x.toFixed(5)) })), masks: headMeshes.map((m) => Array.from(m.userData.mask, (x) => Math.round(x * 100) / 100)) };
   download('hair-project.json', JSON.stringify(prj), 'application/json');
 }
 function loadProject(txt) {
   try {
     const o = JSON.parse(txt); Object.assign(P, o.P); Object.assign(L, o.L);
-    pushUndo(); restore({ guides: o.guides.map((g) => ({ ...g, pts: Float32Array.from(g.pts) })), masks: o.masks.map((m) => Float32Array.from(m)) });
+    pushUndo(); restore({ guides: o.guides.map((g) => ({ ...g, pts: Float32Array.from(g.pts) })), masks: o.masks.map((m) => Float32Array.from(m)), groups: o.groups || [mkGroup('شعر الرأس', '#2ee6a0')], active: 0 });
     presetCols = PRESETS[L.preset] || PRESETS.studio; applyLights(); applyShading(); refreshUI(); computeCrown(); setHint('تم تحميل المشروع.');
   } catch (err) { setHint('تعذر فتح المشروع: ' + err.message); }
 }
@@ -835,6 +946,7 @@ $('bPortrait').onclick = () => loadPortrait();
 function loadPortrait() {
   skin.color = null;
   Object.assign(P, PORTRAIT.PARAMS);
+  groups = PORTRAIT.GROUPS.map((g) => mkGroup(g.name, g.color, g)); P.activeGroup = 0;
   setHead(PORTRAIT.loadPortraitHead());
   headExtras = PORTRAIT.makeEyes(); headGroup.add(headExtras);
   const v = new THREE.Vector3(), c = new THREE.Color();
@@ -906,6 +1018,7 @@ function frame(now) {
   frames++;
   if (now - fpsT > 500) {
     $('sFps').textContent = `${Math.round((frames * 1000) / (now - fpsT))} fps`; frames = 0; fpsT = now;
+    window.__updateGroupCounts && window.__updateGroupCounts();
     $('sGuides').textContent = `guides ${guides.length}`; $('sCards').textContent = `cards ${Math.round(stats.cards)}`;
     $('sTris').textContent = `tris ${stats.tris}`; $('sMs').textContent = `build ${stats.ms.toFixed(1)}ms`;
   }
@@ -919,5 +1032,5 @@ function frame(now) {
   await loadAtlas();
   loadPortrait();
   requestAnimationFrame(frame);
-  window.__hair = { loadPortrait, P, L, SIM, get guides() { return guides; }, camera, controls, setTool, generateFromMask, setHead, makeProceduralHead, applyShading, applyLights, brushOp, undo, redo };
+  window.__hair = { loadPortrait, get groups() { return groups; }, P, L, SIM, get guides() { return guides; }, camera, controls, setTool, generateFromMask, setHead, makeProceduralHead, applyShading, applyLights, brushOp, undo, redo };
 })();

@@ -14,6 +14,7 @@ export const CARD_TYPES = [
   { name: 'شعيرات متفرقة (B4)', ch: 1, u0: 0.775, u1: 0.925, vRoot: 0.07, vTip: 0.88 },
 ];
 
+const WHITE = [1, 1, 1];
 const fract = (x) => x - Math.floor(x);
 export const rnd = (seed, k) => fract(Math.sin(seed * 127.1 + k * 311.7) * 43758.5453);
 const sstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
@@ -120,25 +121,27 @@ export class CardBuilder {
     if (nv <= this.cap) return;
     this.cap = Math.ceil(nv * 1.4) + 256;
     const c = this.cap, mk = (n) => { const a = new THREE.BufferAttribute(new Float32Array(c * n), n); a.setUsage(THREE.DynamicDrawUsage); return a; };
-    this.pos = mk(3); this.nor = mk(3); this.uv = mk(2); this.tan = mk(3); this.aux = mk(4); this.acol = mk(2); this.col = mk(3);
+    this.pos = mk(3); this.nor = mk(3); this.uv = mk(2); this.tan = mk(3); this.aux = mk(4); this.acol = mk(2); this.col = mk(3); this.tint = mk(3);
     this.idx = new THREE.BufferAttribute(new Uint32Array(c * 3), 1);
     this.idx.setUsage(THREE.DynamicDrawUsage);
     const g = this.geo;
     g.setAttribute('position', this.pos); g.setAttribute('normal', this.nor); g.setAttribute('uv', this.uv);
-    g.setAttribute('tangent', this.tan); g.setAttribute('aAux', this.aux); g.setAttribute('aCol', this.acol); g.setAttribute('color', this.col);
+    g.setAttribute('tangent', this.tan); g.setAttribute('aAux', this.aux); g.setAttribute('aCol', this.acol); g.setAttribute('color', this.col); g.setAttribute('aTint', this.tint);
     g.setIndex(this.idx);
   }
 
-  // ctx: { getPts(g), getNormal(g, out), center: Vector3, neigh, types }
-  build(guides, P, ctx) {
-    const S = P.segs, K = P.perGuide, fillN = P.fill;
+  // ctx: { getPts(g), getNormal(g), center, neigh, types, params[group], skip(g) }
+  build(guides, P0, ctx) {
+    const PG = (g) => (ctx.params && ctx.params[g.group]) || P0;
     const items = [];
     let si = 0;
     const virtualPts = () => this.scratch[si] || (this.scratch[si] = new Float32Array(N * 3));
     for (let gi = 0; gi < guides.length; gi++) {
       const g = guides[gi];
+      if (ctx.skip && ctx.skip(g)) continue;
+      const fillN = PG(g).fill;
       items.push({ pts: ctx.getPts(g), g, n: ctx.getNormal(g), seed: g.seed });
-      if (fillN > 0 && !g.group && ctx.neigh[gi] && ctx.neigh[gi].length) {
+      if (fillN > 0 && ctx.neigh[gi] && ctx.neigh[gi].length) {
         for (let f = 0; f < fillN; f++) {
           const nbIdx = ctx.neigh[gi][f % ctx.neigh[gi].length];
           const nb = guides[nbIdx];
@@ -152,19 +155,20 @@ export class CardBuilder {
         }
       }
     }
-    const maxCards = items.length * (K + 1);
-    this.ensure(maxCards * (S + 1) * 2);
-    const { pos, nor, uv, tan, aux, acol, col, idx } = this;
+    let need = 0;
+    for (const it of items) { const q = PG(it.g); need += (q.perGuide + 1) * (q.segs + 1) * 2; }
+    this.ensure(need);
+    const { pos, nor, uv, tan, aux, acol, col, idx, tint } = this;
     const types = ctx.types;
-    const rc = P.rootColor, tc = P.tipColor;
+    const rc = P0.rootColor, tc = P0.tipColor;
     const cr = new THREE.Color(rc), ct = new THREE.Color(tc), cc = new THREE.Color();
-    let nv = 0, ni = 0;
+    let nv = 0, ni = 0, cards = 0;
     const { C, T, O, B } = this;
     const hc = ctx.center;
     const tmpP = [0, 0, 0];
     for (const it of items) {
       const pts = it.pts, g = it.g, seed = it.seed, rn = it.n;
-      const S = g.group ? Math.min(P.segs, 4) : P.segs, K = g.group ? 1 : P.perGuide;
+      const P = PG(g), S = Math.min(40, P.segs), K = P.perGuide, tr = P.tintRGB || WHITE;
       for (let j = 0; j <= S; j++) { catmull(pts, (j / S) * (N - 1), tmpP); C[j * 3] = tmpP[0]; C[j * 3 + 1] = tmpP[1]; C[j * 3 + 2] = tmpP[2]; }
       for (let j = 0; j <= S; j++) {
         const a = Math.max(0, j - 1) * 3, b = Math.min(S, j + 1) * 3, j3 = j * 3;
@@ -185,9 +189,9 @@ export class CardBuilder {
       }
       let glen = 0; for (let i = 0; i < N - 1; i++) glen += g.seg[i];
       const lk = Math.min(1, glen / 0.4);
-      const nCards = K + (!g.group && rnd(seed, 99) < P.fly ? 1 : 0);
+      const nCards = K + (rnd(seed, 99) < P.fly ? 1 : 0);
       for (let c = 0; c < nCards; c++) {
-        const fly = c >= K;
+        const fly = c >= K; cards++;
         const typ = types[fly ? 0 : g.type] || types[0];
         const r1 = rnd(seed, c * 7 + 1), r2 = rnd(seed, c * 7 + 2), r3 = rnd(seed, c * 7 + 3), r4 = rnd(seed, c * 7 + 4), r5 = rnd(seed, c * 7 + 5);
         const W = P.width * g.wScale * (1 + (r1 - 0.5) * 2 * P.widthVar) * (fly ? 1.5 : 1);
@@ -226,7 +230,8 @@ export class CardBuilder {
             tan.setXYZ(k, tx, ty, tz);
             aux.setXYZW(k, t, g.layer, r1, typ.ch);
             acol.setXY(k, r5 + (s === 0 ? 0 : 0.18), t * 0.8 + r1);
-            col.setXYZ(k, cc.r, cc.g, cc.b);
+            col.setXYZ(k, cc.r * tr[0], cc.g * tr[1], cc.b * tr[2]);
+            tint.setXYZ(k, tr[0], tr[1], tr[2]);
             nv++;
           }
           if (j < S) {
@@ -238,8 +243,8 @@ export class CardBuilder {
       }
     }
     this.nv = nv; this.ni = ni;
-    for (const a of [pos, nor, uv, tan, aux, acol, col, idx]) a.needsUpdate = true;
+    for (const a of [pos, nor, uv, tan, aux, acol, col, tint, idx]) a.needsUpdate = true;
     this.geo.setDrawRange(0, ni);
-    return { cards: nv / ((S + 1) * 2), tris: ni / 3 };
+    return { cards, tris: ni / 3 };
   }
 }

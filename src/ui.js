@@ -1,4 +1,5 @@
 const refreshers = [];
+export const onRefresh = (f) => refreshers.push(f);
 export const refreshUI = () => refreshers.forEach((f) => f());
 
 export function mkTabs(tabsEl, bodyEl, defs) {
@@ -23,10 +24,14 @@ export function slider(p, obj, key, label, min, max, step, cb) {
   const r = document.createElement('div'); r.className = 'row';
   const l = document.createElement('label'); l.textContent = label;
   const i = document.createElement('input'); i.type = 'range'; i.min = min; i.max = max; i.step = step;
-  const o = document.createElement('output');
-  const fmt = () => { o.textContent = (+obj[key]).toFixed(step < 0.01 ? 3 : step < 1 ? 2 : 0); };
+  // editable number field: exact values, may go beyond the slider range
+  const o = document.createElement('input'); o.type = 'number'; o.step = step;
+  const dec = step < 0.01 ? 3 : step < 1 ? 2 : 0;
+  const fmt = () => { if (document.activeElement !== o) o.value = (+obj[key]).toFixed(dec); };
   const sync = () => { i.value = obj[key]; fmt(); };
   i.oninput = () => { obj[key] = +i.value; fmt(); cb && cb(obj[key]); };
+  o.onchange = () => { const v = parseFloat(o.value); if (!isFinite(v)) return fmt(); obj[key] = v; i.value = v; cb && cb(v); o.blur(); fmt(); };
+  o.onkeydown = (e) => { e.stopPropagation(); if (e.key === 'Enter') o.onchange(); };
   r.append(l, i, o); p.appendChild(r); refreshers.push(sync); sync();
 }
 export function check(p, obj, key, label, cb) {

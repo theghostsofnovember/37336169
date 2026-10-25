@@ -1,10 +1,11 @@
 import * as THREE from 'three';
 
 const vert = /* glsl */ `
-attribute vec3 tangent; attribute vec4 aAux; attribute vec2 aCol;
+attribute vec3 tangent; attribute vec4 aAux; attribute vec2 aCol; attribute vec3 aTint;
+varying vec3 vTint;
 varying vec2 vUv; varying vec4 vAux; varying vec2 vCol; varying vec3 vW; varying vec3 vN; varying vec3 vT;
 void main(){
-  vUv = uv; vAux = aAux; vCol = aCol;
+  vUv = uv; vAux = aAux; vCol = aCol; vTint = aTint;
   vec4 w = modelMatrix * vec4(position, 1.0);
   vW = w.xyz; vN = normalize(mat3(modelMatrix) * normal); vT = normalize(mat3(modelMatrix) * tangent);
   gl_Position = projectionMatrix * viewMatrix * w;
@@ -15,6 +16,7 @@ uniform sampler2D tAlpha; uniform sampler2D tColor;
 uniform vec3 rootCol, tipCol, spec1Col, spec2Col, skyCol, gndCol;
 uniform vec3 lDir[3]; uniform vec3 lCol[3];
 uniform float texAmt, origAmt, exp1, exp2, sh1, sh2, specAmt, sssAmt, aoAmt, aoLen, cut, rootFade, tipFade, gradA, gradB, alphaMode, showAO;
+varying vec3 vTint;
 varying vec2 vUv; varying vec4 vAux; varying vec2 vCol; varying vec3 vW; varying vec3 vN; varying vec3 vT;
 float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
 void main(){
@@ -32,7 +34,7 @@ void main(){
   vec3 ct = texture2D(tColor, vCol).rgb;
   float lum = dot(ct, vec3(0.333));
   vec3 base = mix(rootCol, tipCol, smoothstep(gradA, gradB, t));
-  vec3 albedo = mix(base * mix(1.0, lum * 3.0, texAmt), ct, origAmt);
+  vec3 albedo = mix(base * mix(1.0, lum * 3.0, texAmt), ct, origAmt) * vTint;
 
   vec3 N = normalize(vN), T = normalize(vT), V = normalize(cameraPosition - vW);
   float nz = (lum - 0.3) * 0.6;

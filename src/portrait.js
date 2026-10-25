@@ -97,6 +97,13 @@ export function facialStrands(castFront) {
   return out;
 }
 
+// eyebrows / moustache: physics locked, coarse resample, single card per strand
+export const GROUPS = [
+  { name: 'شعر الرأس', color: '#2ee6a0' },
+  { name: 'الحواجب', color: '#4c6ef5', lockPhys: true, card: { perGuide: 1, fill: 0, fly: 0, segs: 4, noise: 0.2, twist: 0.2 } },
+  { name: 'الشارب', color: '#9775fa', lockPhys: true, card: { perGuide: 1, fill: 0, fly: 0, segs: 4, noise: 0.3, twist: 0.3 } },
+];
+
 export const PARAMS = {
   type: 1, perGuide: 2, width: 0.07, widthVar: 0.35, taper: 0.4, rootW: 0.65, spread: 0.8, fan: 0.6, twist: 0.45, noise: 0.5,
   layerGap: 0.007, fill: 2, fly: 0.35, segs: 10, vol: 0.6, curve: 0.4, uvVar: 0.6, centerLift: 0, count: 600, minDist: 0.018,

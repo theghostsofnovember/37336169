@@ -33,9 +33,17 @@ button.warn:hover{border-color:#ff5d5d}
 #tabs{display:flex;flex-wrap:wrap;gap:3px;padding:6px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel);z-index:2}
 #tabs button{padding:3px 8px;font-size:12px}
 .tab{display:none;padding:4px 12px 20px}.tab.show{display:block}
-.row{display:grid;grid-template-columns:96px 1fr 44px;gap:8px;align-items:center;margin:5px 0}
+.row{display:grid;grid-template-columns:96px 1fr 58px;gap:8px;align-items:center;margin:5px 0}
 .row label{color:var(--dim);font-size:12px}
-.row output{font:11px monospace;text-align:end;color:var(--txt)}
+.row input[type=number]{width:100%;font:11px monospace;color:var(--txt);background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:2px 3px;direction:ltr;text-align:end}
+.grp{display:grid;grid-template-columns:18px 22px 1fr auto;gap:5px;align-items:center;padding:5px;border:1px solid var(--line);border-radius:6px;margin:4px 0;cursor:pointer}
+.grp.act{border-color:var(--acc);background:#ff7a5914}
+.grp input[type=text]{width:100%;padding:2px 5px;cursor:text}
+.grp input[type=color]{width:22px;height:20px;padding:0;border:none;background:none}
+.grp .tg{display:flex;gap:3px}
+.grp .tg button{padding:1px 5px;font-size:11px;opacity:.45}
+.grp .tg button.on{opacity:1;background:var(--panel2);color:var(--txt);border-color:var(--acc2);font-weight:400}
+.grp small{grid-column:3/5;color:var(--dim);font-size:11px}
 .row input[type=range]{width:100%;accent-color:var(--acc);direction:ltr}
 .row2{display:grid;grid-template-columns:96px 1fr;gap:8px;align-items:center;margin:5px 0}
 .row2 label{color:var(--dim);font-size:12px}
