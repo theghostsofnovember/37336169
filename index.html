@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Smart Hair Tool — أداة الشعر الذكية</title>
+<style>
+:root{--bg:#14161b;--panel:#1b1e25;--panel2:#232732;--line:#2d3240;--txt:#e6e9f0;--dim:#8d95a8;--acc:#ff7a59;--acc2:#5ac8fa}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--txt);font:13px/1.45 system-ui,"Segoe UI",Tahoma,Arial,sans-serif;overflow:hidden}
+#app{display:grid;grid-template-rows:42px 1fr 24px;grid-template-columns:176px 1fr 316px;height:100%}
+#top{grid-column:1/-1;display:flex;align-items:center;gap:6px;padding:0 10px;background:var(--panel);border-bottom:1px solid var(--line)}
+#top h1{font-size:14px;margin:0 0 0 14px;font-weight:700;letter-spacing:.2px}
+#top h1 b{color:var(--acc)}
+button,select,input[type=text]{font:inherit;color:var(--txt);background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:4px 9px;cursor:pointer}
+button:hover{border-color:var(--acc2)}
+button.on{background:var(--acc);border-color:var(--acc);color:#1a0d08;font-weight:600}
+button.warn:hover{border-color:#ff5d5d}
+.sp{flex:1}
+#tools{background:var(--panel);border-inline-end:1px solid var(--line);padding:8px;overflow:auto;display:flex;flex-direction:column;gap:4px}
+#tools h3,#panel h3{margin:10px 2px 4px;font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.6px;font-weight:600}
+#tools button{display:flex;justify-content:space-between;align-items:center;text-align:start;width:100%}
+#tools kbd{font:10px monospace;color:var(--dim);background:#0003;padding:0 5px;border-radius:3px}
+#tools button.on kbd{color:#4a2418}
+#view{position:relative;min-width:0;min-height:0}
+#cv{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+#ring{position:absolute;pointer-events:none;border:1.5px solid #fff9;border-radius:50%;box-shadow:0 0 0 1px #0007;transform:translate(-50%,-50%);display:none}
+#hint{position:absolute;left:12px;bottom:10px;background:#000a;padding:5px 10px;border-radius:6px;font-size:12px;color:#cfd5e2;pointer-events:none;max-width:70%}
+#vbar{position:absolute;top:8px;left:8px;display:flex;gap:4px;flex-wrap:wrap;max-width:75%}
+#vbar button{padding:2px 8px;background:#1b1e25cc;font-size:12px}
+#vbar button.on{background:var(--acc)}
+#panel{background:var(--panel);border-inline-start:1px solid var(--line);overflow:auto;display:flex;flex-direction:column}
+#tabs{display:flex;flex-wrap:wrap;gap:3px;padding:6px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel);z-index:2}
+#tabs button{padding:3px 8px;font-size:12px}
+.tab{display:none;padding:4px 12px 20px}.tab.show{display:block}
+.row{display:grid;grid-template-columns:96px 1fr 44px;gap:8px;align-items:center;margin:5px 0}
+.row label{color:var(--dim);font-size:12px}
+.row output{font:11px monospace;text-align:end;color:var(--txt)}
+.row input[type=range]{width:100%;accent-color:var(--acc);direction:ltr}
+.row2{display:grid;grid-template-columns:96px 1fr;gap:8px;align-items:center;margin:5px 0}
+.row2 label{color:var(--dim);font-size:12px}
+.row2 input[type=color]{width:100%;height:24px;border:1px solid var(--line);background:none;padding:0;border-radius:4px}
+.row2 select{width:100%}
+.btns{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0}
+.note{color:var(--dim);font-size:11.5px;margin:6px 0}
+#status{grid-column:1/-1;display:flex;gap:18px;align-items:center;padding:0 10px;background:var(--panel);border-top:1px solid var(--line);color:var(--dim);font:11px monospace;direction:ltr}
+#drop{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:#000b;font-size:22px;z-index:9}
+@media(max-width:900px){#app{grid-template-columns:130px 1fr 250px}}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="top">
+    <h1>Smart <b>Hair</b> Tool</h1>
+    <button id="bNew" class="warn">جديد</button>
+    <button id="bUndo">تراجع ⌘Z</button><button id="bRedo">إعادة</button>
+    <span class="sp"></span>
+    <button id="bImport">استيراد موديل (GLB / OBJ)</button>
+    <button id="bPortrait">مثال البورتريه</button>
+    <button id="bHead">رأس افتراضي</button>
+    <input id="fModel" type="file" accept=".glb,.gltf,.obj" hidden>
+  </div>
+  <div id="tools"></div>
+  <div id="view">
+    <canvas id="cv"></canvas><div id="ring"></div>
+    <div id="vbar"></div>
+    <div id="hint"></div>
+    <div id="drop">أفلت ملف الموديل هنا</div>
+  </div>
+  <div id="panel"><div id="tabs"></div><div id="tabBody"></div></div>
+  <div id="status"><span id="sGuides"></span><span id="sCards"></span><span id="sTris"></span><span id="sMs"></span><span id="sFps"></span></div>
+</div>
+<script src="dist/app.js"></script>
+</body>
+</html>

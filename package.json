@@ -1,0 +1,7 @@
+{
+  "name": "smart-hair-tool",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": { "build": "bun build src/main.js --outfile=dist/app.js --format=iife --minify" },
+  "dependencies": { "three": "0.170.0" }
+}
