@@ -1,6 +1,6 @@
 // Region-aware hair generation: roots sampled per head region, grown along follicle → style fields.
 import * as THREE from 'three';
-import { toRef, regionAt, follicleDir, styleDir, beardShape, isScalp, REG, REF, fadeMul } from './regions.js';
+import { toRef, regionAt, follicleDir, styleDir, beardShape, isScalp, REG, REF, fadeMul, hairEdge, sstep } from './regions.js';
 import { growStrand } from './grow.js';
 
 function sampler(meshes, F, o) {
@@ -79,6 +79,9 @@ export function generateHair({ meshes, F, collider, center }, S, { parts = null 
   const fol = new THREE.Vector3(), sty = new THREE.Vector3();
   const grow = (r, len, extra) => {
     follicleDir(r.q, r.n, r.id, S, fol); styleDir(r.q, r.n, r.id, S, fol, sty);
+    // at the hairline, start already combed in the style direction (no spike over the forehead)
+    const ek = isScalp(r.id) ? 1 - sstep(0.02, 0.14, hairEdge(r.q, S)) : 0;
+    if (ek > 0) fol.lerp(sty, (extra && extra.combed ? 1 : 0.8) * ek).normalize();
     return growStrand({
       root: r.p, n: r.n, follicle: fol, style: sty, len: len * s, lift: S.lift, rootBend: S.rootBend, gravity: S.gravity, cling: S.cling,
       wave: S.wave, waveFreq: S.waveFreq / s, curlR: S.curl * 0.04 * s, curlFreq: S.curlFreq / s, frizz: S.frizz, center, R: F.R, outward: S.style === 'afro', ...extra,
@@ -87,16 +90,17 @@ export function generateHair({ meshes, F, collider, center }, S, { parts = null 
   // scalp + inner layer
   const scalpIds = [1, 2, 3, 4, 5, 6, 7];
   if (want('scalp') && S.count > 0 && S.len > 0) {
-    const roots = sampleRoots(tris, F, S, scalpIds, S.count, 0.62 * Math.sqrt(3.6 / S.count) * s, (reg, q, mk) => mk);
+    // main cards start just behind the hairline; the edge itself is texture + fine hairs
+    const roots = sampleRoots(tris, F, S, scalpIds, S.count, 0.62 * Math.sqrt(3.6 / S.count) * s, (reg, q, mk) => mk * (0.25 + 0.75 * sstep(0.04, 0.12, hairEdge(q, S))) * sstep(0.006, 0.04, hairEdge(q, S)));
     const L = new Float32Array(roots.length);
     roots.forEach((r, i) => { L[i] = S.len * S.reg[r.id - 1] * (1 + (rnd() - 0.5) * 2 * S.lenVar); });
     smoothLengths(roots, L);
     roots.forEach((r, i) => { L[i] *= Math.pow(fadeMul(r.q, r.id, S), 1.6); });
     roots.forEach((r, i) => {
       if (L[i] < 0.012) return;
-      // thinner cards along the hairline so its edge stays soft
-      const edge = 0.45 + 0.55 * Math.min(1, r.w * 1.1);
-      out.push({ pts: grow(r, L[i]), n: r.n, group: 0, type: S.card.type ?? 1, layer: [0, 1, 1, 2][Math.floor(rnd() * 4)], w: (0.85 + rnd() * 0.3) * edge });
+      const e = hairEdge(r.q, S), edge = 0.35 + 0.65 * sstep(0.01, 0.14, e), ef = sstep(0.02, 0.2, e);
+      // hair lies flat at the hairline and only builds volume further back
+      out.push({ pts: grow(r, L[i], { lift: S.lift * (0.12 + 0.88 * ef), rootBend: S.rootBend * (0.4 + 0.6 * ef) }), n: r.n, group: 0, type: S.card.type ?? 1, layer: [0, 1, 1, 2][Math.floor(rnd() * 4)], w: (0.85 + rnd() * 0.3) * edge });
       if (rnd() < S.inner && L[i] > 0.05 && r.w > 0.97 && r.id !== REG.FRONT && r.id !== REG.SIDEBURN) out.push({ pts: grow(r, L[i] * 0.55, { lift: S.lift * 0.25, cling: 1, curlR: S.curl * 0.02 * s, gravity: S.gravity * 0.5 }), n: r.n, group: 1, type: 4, layer: 0, w: 0.9 + rnd() * 0.3 });
     });
   }
@@ -108,6 +112,18 @@ export function generateHair({ meshes, F, collider, center }, S, { parts = null 
       out.push({ pts, n: r.n, group, type, layer: 2, w: 0.8 + rnd() * 0.4 });
     }
   };
+  // baby hairs: short, thin, sparse strands straddling the hairline
+  if (want('scalp') && S.hairlineFine > 0 && S.count > 0 && S.len > 0 && S.style !== 'afro') {
+    const n = Math.round(S.hairlineFine * 240 * Math.min(1.5, S.count / 1000));
+    const roots = sampleRoots(tris, F, S, [REG.FRONT, REG.TOP, REG.SIDES, REG.SIDEBURN], n, 0.012 * s, (reg, q, mk) => {
+      const e = hairEdge(q, S); return e > -0.03 && e < 0.06 ? sstep(-0.03, 0.01, e) * Math.min(1, mk * 3) : 0;
+    });
+    for (const r of roots) {
+      const fm = fadeMul(r.q, r.id, S), len = Math.min(S.len * S.reg[r.id - 1], 0.06 + 0.06 * rnd()) * fm;
+      if (len < 0.015) continue;
+      out.push({ pts: grow(r, len, { lift: 0.06, rootBend: 0.12, cling: 0.8, gravity: 0, wave: 0.05, curlR: 0, frizz: 0.015, combed: true }), n: r.n, group: 0, type: 0, layer: 2, w: 0.05 + 0.05 * rnd() });
+    }
+  }
   if (want('brow') && S.brows !== 'none' && !S.pbrNoBrowCards) {
     const thick = S.brows === 'thick' ? 1.25 : S.brows === 'thin' ? 0.7 : 1;
     face([REG.BROW], Math.round(280 * thick), 0.006, (reg) => reg.w, () => (S.pbrBrowLen ? S.pbrBrowLen * (0.6 + 0.8 * rnd()) : (0.045 + rnd() * 0.035) * thick), 2, 5);

@@ -58,8 +58,12 @@ export function hairlineY(th, o) {
   h += o.recede * 0.3 * (1 - sstep(0.1, 1.2, th));
   h += o.recede * 0.14 * Math.exp(-((th - 0.75) ** 2) / 0.05);
   h += o.napeUp * 0.55 * sstep(1.9, 2.8, th);
+  // natural irregularity so the line never reads as a cut edge
+  h += (0.011 * Math.sin(th * 19 + 0.7) + 0.006 * Math.sin(th * 37 + 2.1)) * (1 - sstep(1.6, 2.0, th));
   return h;
 }
+// signed height above the hairline (ref units): <0 skin, >0 hair
+export const hairEdge = (p, o) => p.y - hairlineY(azim(p), o);
 const browY = (u) => 0.565 + 0.03 * Math.sin(Math.min(1, u * 1.6) * Math.PI) - 0.07 * u * u + 0.02 * (1 - u);
 
 const res = { id: 0, w: 0 };
@@ -67,7 +71,7 @@ const ret = (id, w) => { res.id = id; res.w = w; return res; };
 export function regionAt(p, o) {
   const th = azim(p), ax = Math.abs(p.x), y = p.y;
   const h = hairlineY(th, o);
-  const ws = sstep(h - 0.015, h + 0.02, y);
+  const ws = sstep(h - 0.035, h + 0.03, y);
   if (ws > 0.01 && y > -0.25) {
     let id;
     if (th < 0.75 && y < h + 0.28) id = REG.FRONT;

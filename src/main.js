@@ -873,6 +873,7 @@ const topo = () => { topoDirty = hairDirty = true; };
   slider(p, S, 'recede', 'انحسار الجبهة', -0.3, 1, 0.01, custom(hairlineChanged));
   slider(p, S, 'napeUp', 'ارتفاع القفا', -0.2, 1, 0.01, custom(hairlineChanged));
   slider(p, S, 'sideburn', 'طول السوالف', 0, 0.6, 0.01, custom(hairlineChanged));
+  slider(p, S, 'hairlineFine', 'شعيرات خط الشعر الناعمة', 0, 2, 0.05, g);
   slider(p, S, 'fade', 'تدرج الجوانب (Fade)', 0, 1, 0.01, g);
   slider(p, S, 'fadeLo', 'بداية التدرج (جلد)', -0.3, 0.8, 0.01, g);
   slider(p, S, 'fadeHi', 'نهاية التدرج (شعر)', 0, 1.2, 0.01, g);

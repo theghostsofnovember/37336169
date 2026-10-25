@@ -17,7 +17,7 @@ export const SKIN_TONES = { light: ['فاتح', '#d8b49c'], wheat: ['حنطي', 
 export const STYLE_DEFAULTS = {
   preset: 'portrait', style: 'up', part: 'none', len: 0.42, lenVar: 0.2, reg: [1, 1, 0.85, 0.65, 0.75, 0.45, 0.3],
   count: 650, lift: 0.55, rootBend: 0.25, gravity: 0.08, cling: 0.75, wave: 0.45, waveFreq: 2.5, curl: 0, curlFreq: 6, frizz: 0.04,
-  recede: 0, napeUp: 0, fade: 0, fadeLo: 0.05, fadeHi: 0.75, sideburn: 0.18, swirl: 1, whorlX: 0.06, browThick: 1, beardCheek: 0, beardNeck: 0.3,
+  recede: 0, napeUp: 0, hairlineFine: 1, fade: 0, fadeLo: 0.05, fadeHi: 0.75, sideburn: 0.18, swirl: 1, whorlX: 0.06, browThick: 1, beardCheek: 0, beardNeck: 0.3,
   brows: 'thick', mous: 'chevron', beard: 'stubble', beardLen: 0.06, beardCurl: 0.2,
   color: 'darkbrown', skin: 'portrait', scalpTex: 0.9, inner: 0.45,
   card: { type: 1, perGuide: 2, width: 0.07, widthVar: 0.35, taper: 0.4, rootW: 0.65, spread: 0.8, fan: 0.6, twist: 0.45, noise: 0.5, fill: 2, fly: 0.35, segs: 10 },

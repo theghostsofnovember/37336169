@@ -7,7 +7,7 @@ const v = new THREE.Vector3(), r = new THREE.Vector3(), tgt = new THREE.Vector3(
 // o: root, n, follicle, style, len, lift, rootBend, gravity, cling, wave, waveFreq, curlR, curlFreq, frizz, center, R (head radius), outward
 export function growStrand(o, collider) {
   const pts = new Float32Array(N * 3), step = o.len / (N - 1), c = o.center, R = o.R;
-  p.copy(o.root).addScaledVector(o.n, 0.003);
+  p.copy(o.root).addScaledVector(o.n, o.sink ?? 0.003);
   pts[0] = p.x; pts[1] = p.y; pts[2] = p.z;
   v.copy(o.follicle).multiplyScalar(1 - Math.min(0.9, o.lift)).addScaledVector(o.n, Math.min(0.9, o.lift)).normalize();
   const ph = Math.random() * 6.283, ph2 = Math.random() * 6.283;
