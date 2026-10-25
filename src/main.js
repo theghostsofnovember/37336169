@@ -14,7 +14,8 @@ import { computeUVs, bakeHeadTexture, checkerCanvas, regionColors } from './head
 import { generateHair } from './smart.js';
 import * as PBR from './browpbr.js';
 import { PRESETS as STYLE_PRESETS, STYLE_DEFAULTS, HAIR_COLORS, SKIN_TONES, SHADE, groupTemplates } from './styles.js';
-import { makeHairMaterial } from './shader.js';
+import { makeHairMaterial, makeHairDepthMaterial } from './shader.js';
+import { MayaRig, LDEF, LIGHT_PRESETS, LIGHT_PRESET_NAMES } from './lighting.js';
 import { mkTabs, head as h3, note, slider, check, color, select, buttons, refreshUI, onRefresh } from './ui.js';
 
 const $ = (id) => document.getElementById(id);
@@ -29,22 +30,15 @@ const P = {
   rootColor: '#2a1a12', tipColor: '#7a5435', texAmt: 0.6, origAmt: 0, spec1: '#fff1dd', exp1: 90, sh1: -0.1, spec2: '#b98a5e', exp2: 24, sh2: 0.2, specAmt: 0.8, sss: 0.3, ao: 0.6, aoLen: 0.35, cut: 0.35, rootFade: 0.03, tipFade: 0.25, hashed: false, gradA: 0, gradB: 1,
   exposure: 0.85,
 };
-const L = { preset: 'studio', keyAz: -40, keyEl: 35, keyI: 2.2, fillAz: 70, fillEl: 10, fillI: 0.5, rimAz: 180, rimEl: 30, rimI: 1.4, ambI: 0.55 };
+const L = { preset: 'portrait', ...LDEF };
 const SIM = { on: false, wind: 0.4, gravity: 0.8, stiff: 0.35, damp: 0.96, shake: false, t: 0 };
-const PRESETS = {
-  studio: { bg: 0x1a1d24, key: 0xffffff, fill: 0xcfe0ff, rim: 0xffffff, sky: 0xdde6ff, gnd: 0x3a342f, v: { keyAz: -40, keyEl: 35, keyI: 2.2, fillI: 0.5, rimI: 1.4, ambI: 0.55 } },
-  sun: { bg: 0x2b3c52, key: 0xffe7c4, fill: 0x9fc4ff, rim: 0xfff2dd, sky: 0x9cc2ff, gnd: 0x5a4a38, v: { keyAz: -55, keyEl: 50, keyI: 4.2, fillI: 0.5, rimI: 2.2, ambI: 0.6 } },
-  shade: { bg: 0x2a3140, key: 0xb9cdee, fill: 0xaecaff, rim: 0xd0e0ff, sky: 0xaec6f0, gnd: 0x39414f, v: { keyAz: -20, keyEl: 55, keyI: 1.0, fillI: 0.7, rimI: 0.8, ambI: 1.0 } },
-  portrait: { bg: 0x2a2b2c, key: 0xfff0e2, fill: 0xd6e0ff, rim: 0xffffff, sky: 0xe8e4e0, gnd: 0x4a3c34, v: { keyAz: -18, keyEl: 28, keyI: 2.4, fillAz: 60, fillI: 0.35, rimAz: 160, rimI: 0.9, ambI: 0.55 } },
-  indoor: { bg: 0x1d1612, key: 0xffa968, fill: 0x6b78a8, rim: 0x86a2ff, sky: 0x6a5648, gnd: 0x1e1612, v: { keyAz: -65, keyEl: 20, keyI: 2.8, fillI: 0.3, rimI: 1.8, ambI: 0.5 } },
-};
+const PRESETS = LIGHT_PRESETS;
 
 /* ---------------- three setup ---------------- */
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: false });
 renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x1a1d24);
 const camera = new THREE.PerspectiveCamera(32, 1, 0.05, 100);
 camera.position.set(0.8, 0.5, 6.4);
 const controls = new OrbitControls(camera, canvas);
@@ -53,8 +47,7 @@ controls.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, R
 controls.touches = { ONE: null, TWO: THREE.TOUCH.DOLLY_ROTATE };
 controls.enabled = true;
 
-const lights = { key: new THREE.DirectionalLight(), fill: new THREE.DirectionalLight(), rim: new THREE.DirectionalLight(), hemi: new THREE.HemisphereLight() };
-Object.values(lights).forEach((l) => scene.add(l));
+const rig = new MayaRig(renderer, scene);
 const grid = new THREE.GridHelper(8, 16, 0x3a4050, 0x262a34); grid.position.y = -2.3; scene.add(grid);
 
 const loadImg = (src) => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
@@ -66,6 +59,7 @@ const hairMat = makeHairMaterial(atlasTex, colorTex);
 const builder = new CardBuilder();
 const hairMesh = new THREE.Mesh(builder.geo, hairMat);
 hairMesh.frustumCulled = false; scene.add(hairMesh);
+hairMesh.castShadow = true; hairMesh.customDepthMaterial = makeHairDepthMaterial(hairMat);
 
 const lineGeo = new THREE.BufferGeometry();
 const linePos = new THREE.BufferAttribute(new Float32Array(MAX_GUIDES * (N - 1) * 6), 3).setUsage(THREE.DynamicDrawUsage);
@@ -134,25 +128,19 @@ const undo = () => { if (!undoStack.length) return; redoStack.push(snapshot()); 
 const redo = () => { if (!redoStack.length) return; undoStack.push(snapshot()); restore(redoStack.pop()); };
 
 /* ---------------- lights ---------------- */
-const dirFrom = (az, el) => { const a = az * Math.PI / 180, e = el * Math.PI / 180; return new THREE.Vector3(Math.sin(a) * Math.cos(e), Math.sin(e), Math.cos(a) * Math.cos(e)); };
-let presetCols = PRESETS.studio;
+let presetCols = PRESETS.portrait;
 function applyLights() {
-  const pc = presetCols, u = hairMat.uniforms;
-  const set = (i, light, col, az, el, inten) => {
-    const d = dirFrom(az, el);
-    light.position.copy(d).multiplyScalar(10); light.color.set(col); light.intensity = inten;
-    u.lDir.value[i].copy(d); u.lCol.value[i].set(col).multiplyScalar(inten);
-  };
-  set(0, lights.key, pc.key, L.keyAz, L.keyEl, L.keyI);
-  set(1, lights.fill, pc.fill, L.fillAz, L.fillEl, L.fillI);
-  set(2, lights.rim, pc.rim, L.rimAz, L.rimEl, L.rimI);
-  lights.hemi.color.set(pc.sky); lights.hemi.groundColor.set(pc.gnd); lights.hemi.intensity = L.ambI;
-  u.skyCol.value.set(pc.sky).multiplyScalar(L.ambI * 0.6); u.gndCol.value.set(pc.gnd).multiplyScalar(L.ambI * 0.6);
-  scene.background.set(pc.bg);
+  rig.apply(L, presetCols, hairMat.uniforms);
   renderer.toneMappingExposure = P.exposure;
 }
-function applyPreset(name) {
-  const p = PRESETS[name]; presetCols = p; Object.assign(L, p.v, { preset: name }); applyLights(); refreshUI();
+function applyLightPreset(name) {
+  const p = PRESETS[name]; if (!p) return; presetCols = p; Object.assign(L, LDEF, p.v, { preset: name }); applyLights(); refreshUI();
+}
+function fitRig() {
+  const b = new THREE.Box3(); headMeshes.forEach((m) => b.expandByObject(m));
+  if (!b.isEmpty()) rig.fit(b);
+  headGroup.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  applyLights();
 }
 function applyShading() {
   const u = hairMat.uniforms;
@@ -224,7 +212,7 @@ function setHead(res) {
   computeUVs(headMeshes, frame);
   maskPainted = false; applyRegionMask();
   guides = []; undoStack.length = 0; redoStack.length = 0; topoDirty = hairDirty = true; resetSim();
-  computeCrown(); frameHead();
+  computeCrown(); frameHead(); fitRig();
 }
 function computeCrown() {
   let best = -1e9; const v = new THREE.Vector3();
@@ -1080,19 +1068,34 @@ const topo = () => { topoDirty = hairDirty = true; };
 }
 {
   const p = tabEls('l');
-  h3(p, 'إضاءة جاهزة');
-  select(p, L, 'preset', 'البيئة', () => [['portrait', 'بورتريه'], ['studio', 'استوديو'], ['sun', 'شمس'], ['shade', 'ظل'], ['indoor', 'داخلي دافئ']], applyPreset);
-  h3(p, 'الضوء الرئيسي');
+  h3(p, 'إضاءة جاهزة (تقنيات Maya / Arnold)');
+  select(p, L, 'preset', 'الإعداد', () => LIGHT_PRESET_NAMES, applyLightPreset);
+  h3(p, 'الضوء الرئيسي (Key – Area)');
   slider(p, L, 'keyAz', 'الاتجاه °', -180, 180, 1, applyLights);
   slider(p, L, 'keyEl', 'الارتفاع °', -10, 90, 1, applyLights);
   slider(p, L, 'keyI', 'الشدة', 0, 8, 0.05, applyLights);
-  h3(p, 'التعبئة والحافة');
-  slider(p, L, 'fillI', 'تعبئة', 0, 4, 0.05, applyLights);
-  slider(p, L, 'rimAz', 'اتجاه الحافة °', -180, 180, 1, applyLights);
-  slider(p, L, 'rimI', 'حافة', 0, 6, 0.05, applyLights);
-  slider(p, L, 'ambI', 'محيط', 0, 3, 0.05, applyLights);
+  slider(p, L, 'keyK', 'حرارة اللون (K)', 2000, 12000, 50, applyLights);
+  slider(p, L, 'keySize', 'حجم المصدر (نعومة الظل)', 0, 1, 0.01, applyLights);
+  h3(p, 'التعبئة (Fill)');
+  slider(p, L, 'fillAz', 'الاتجاه °', -180, 180, 1, applyLights);
+  slider(p, L, 'fillEl', 'الارتفاع °', -30, 90, 1, applyLights);
+  slider(p, L, 'fillI', 'الشدة', 0, 4, 0.05, applyLights);
+  slider(p, L, 'fillK', 'حرارة اللون (K)', 2000, 12000, 50, applyLights);
+  h3(p, 'الحافة (Rim / Back)');
+  slider(p, L, 'rimAz', 'الاتجاه °', -180, 180, 1, applyLights);
+  slider(p, L, 'rimEl', 'الارتفاع °', -10, 90, 1, applyLights);
+  slider(p, L, 'rimI', 'الشدة', 0, 6, 0.05, applyLights);
+  slider(p, L, 'rimK', 'حرارة اللون (K)', 2000, 12000, 50, applyLights);
+  check(p, L, 'rimHairOnly', 'الحافة على الشعر فقط (Light Linking)', applyLights);
+  h3(p, 'القبة السماوية (Skydome / IBL)');
+  slider(p, L, 'ambI', 'شدة القبة', 0, 3, 0.05, applyLights);
+  slider(p, L, 'skyK', 'حرارة السماء (K)', 2000, 14000, 50, applyLights);
+  h3(p, 'الظلال');
+  check(p, L, 'shadows', 'ظلال الضوء الرئيسي (Raytrace)', applyLights);
+  slider(p, L, 'shadowDens', 'كثافة الظل', 0, 1, 0.01, applyLights);
+  slider(p, L, 'hairShadow', 'ظل الشعر الذاتي (Deep Shadow)', 0, 3, 0.05, applyLights);
   slider(p, P, 'exposure', 'التعريض', 0.3, 2.5, 0.01, applyLights);
-  note(p, 'اختبر الشعر في الشمس والظل والإضاءة الداخلية للتأكد من ثبات الشكل.');
+  note(p, 'مثل Maya: ضوء رئيسي مساحي يلقي ظلاً ناعماً (الشعر يظلّل فروة الرأس والجبهة)، تعبئة وحافة بحرارة لون Kelvin، وقبة سماوية فيها صناديق إضاءة تعطي انعكاسات العين. «الحافة على الشعر فقط» تفصل الشعر عن الخلفية دون إضاءة الوجه.');
 }
 {
   const p = tabEls('p');
@@ -1146,11 +1149,11 @@ function saveProject() {
 }
 function loadProject(txt) {
   try {
-    const o = JSON.parse(txt); Object.assign(P, o.P); Object.assign(L, o.L);
+    const o = JSON.parse(txt); Object.assign(P, o.P); Object.assign(L, LDEF, o.L);
     if (o.S) { const regArr = S.reg; Object.assign(S, o.S); regArr.splice(0, regArr.length, ...o.S.reg); S.reg = regArr; }
     if (o.pbr) { PB.layers = o.pbr; regenPBR('eyebrow'); regenPBR('mustache'); drawMapView(); }
     pushUndo(); restore({ guides: o.guides.map((g) => ({ ...g, pts: Float32Array.from(g.pts) })), masks: o.masks.map((m) => Float32Array.from(m)), groups: o.groups || [mkGroup('شعر الرأس', '#2ee6a0')], active: 0 });
-    presetCols = PRESETS[L.preset] || PRESETS.studio; applyLights(); applyShading(); refreshUI(); computeCrown(); bakeTexture(); setHint('تم تحميل المشروع.');
+    presetCols = PRESETS[L.preset] || PRESETS.portrait; applyLights(); applyShading(); refreshUI(); computeCrown(); bakeTexture(); setHint('تم تحميل المشروع.');
   } catch (err) { setHint('تعذر فتح المشروع: ' + err.message); }
 }
 function exportPNG() {
@@ -1245,8 +1248,8 @@ function loadPortrait() {
   skin.color = null;
   Object.assign(P, SHADE);
   setHead(PORTRAIT.loadPortraitHead());
-  headExtras = PORTRAIT.makeEyes(); headGroup.add(headExtras);
-  presetCols = PRESETS.portrait; Object.assign(L, PRESETS.portrait.v, { preset: 'portrait' });
+  headExtras = PORTRAIT.makeEyes(); headGroup.add(headExtras); fitRig();
+  presetCols = PRESETS.portrait; Object.assign(L, LDEF, PRESETS.portrait.v, { preset: 'portrait' });
   applyLights();
   if (!PB.gen.eyebrow) { regenPBR('eyebrow'); regenPBR('mustache'); }
   applyPreset(S.preset === 'custom' ? 'portrait' : S.preset);
@@ -1284,6 +1287,7 @@ function renderFrame() {
   lines.visible = rootPts.visible = P.showGuides;
   lineMat.depthTest = rootPts.material.depthTest = !P.xray;
   headGroup.visible = P.showHead;
+  rig.update(hairMat.uniforms);
   renderer.render(scene, camera);
 }
 function tick(now) {
@@ -1309,5 +1313,5 @@ function tick(now) {
   await loadAtlas();
   loadPortrait();
   requestAnimationFrame(tick);
-  window.__hair = { PB, regenPBR, drawMapView, schedulePBR, regenFace, rebuildEyes: (o) => { if (headExtras) headGroup.remove(headExtras); headExtras = PORTRAIT.makeEyes(o); headGroup.add(headExtras); }, loadPortrait, applyPreset, generateStyle, bakeTexture, applyHeadView, updateFlowLines, S, get frame() { return frame; }, get groups() { return groups; }, P, L, SIM, get guides() { return guides; }, camera, controls, setTool, generateFromMask, setHead, makeProceduralHead, applyShading, applyLights, brushOp, undo, redo };
+  window.__hair = { PB, regenPBR, drawMapView, schedulePBR, regenFace, rebuildEyes: (o) => { if (headExtras) headGroup.remove(headExtras); headExtras = PORTRAIT.makeEyes(o); headGroup.add(headExtras); fitRig(); }, loadPortrait, applyLightPreset, rig, applyPreset, generateStyle, bakeTexture, applyHeadView, updateFlowLines, S, get frame() { return frame; }, get groups() { return groups; }, P, L, SIM, get guides() { return guides; }, camera, controls, setTool, generateFromMask, setHead, makeProceduralHead, applyShading, applyLights, brushOp, undo, redo };
 })();

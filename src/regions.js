@@ -94,8 +94,9 @@ export function regionAt(p, o) {
   }
   if (p.z > 0.66 && ax < 0.17 && y <= -0.09 && y > -0.2) return ret(REG.SKIN, 0); // lips
   const top = lerpTable(CHEEK, ax) - o.beardCheek * 0.15;
-  if (y < top && th < 1.48) {
-    const jaw = lerpTable(JAW, th), wt = sstep(top + 0.005, top - 0.03, y);
+  if (y < top + 0.01 && th < 1.5) {
+    // soft cheek line and soft fade towards the ear: no hard stubble edge
+    const jaw = lerpTable(JAW, th), wt = sstep(top + 0.01, top - 0.07, y) * sstep(1.5, 1.34, th);
     if (y >= jaw) return ret(REG.BEARD, wt);
     const depth = 0.06 + 0.32 * o.beardNeck;
     if (th < 1.35 && y > jaw - depth - 0.03) return ret(REG.NECK, wt * sstep(jaw - depth - 0.03, jaw - depth + 0.02, y));

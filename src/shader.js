@@ -11,22 +11,44 @@ void main(){
   gl_Position = projectionMatrix * viewMatrix * w;
 }`;
 
+const alphaFn = /* glsl */ `
+float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+float cardAlpha(vec4 tx){
+  float ch = vAux.w;
+  float a = ch < 0.5 ? tx.r : (ch < 1.5 ? tx.g : tx.b);
+  float t = vAux.x;
+  a *= smoothstep(0.0, rootFade + 1e-4, t);
+  float tipCut = 1.0 - tipFade * hash(vec2(floor(vUv.x * 700.0), 1.7));
+  return a * (1.0 - smoothstep(tipCut - tipFade * 0.5, tipCut + 1e-3, t));
+}`;
+
 const frag = /* glsl */ `
+#include <packing>
+uniform sampler2D shMap; uniform mat4 shMat; uniform float shOn, shRadius, shDepth, shDens, shHair;
 uniform sampler2D tAlpha; uniform sampler2D tColor;
 uniform vec3 rootCol, tipCol, spec1Col, spec2Col, skyCol, gndCol;
 uniform vec3 lDir[3]; uniform vec3 lCol[3];
 uniform float texAmt, origAmt, exp1, exp2, sh1, sh2, specAmt, sssAmt, aoAmt, aoLen, cut, rootFade, tipFade, gradA, gradB, alphaMode, showAO;
 varying vec3 vTint;
 varying vec2 vUv; varying vec4 vAux; varying vec2 vCol; varying vec3 vW; varying vec3 vN; varying vec3 vT;
-float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+${alphaFn}
+// key-light shadow; hair occluders transmit by thickness (deep opacity map approximation)
+float keyShadow(){
+  if (shOn < 0.5 || shDens <= 0.0) return 1.0;
+  vec4 c = shMat * vec4(vW, 1.0); vec3 sc = c.xyz / c.w;
+  if (sc.x < 0.0 || sc.x > 1.0 || sc.y < 0.0 || sc.y > 1.0 || sc.z > 1.0) return 1.0;
+  float s = 0.0, st = shRadius / 2048.0;
+  for (int x = -2; x <= 2; x++) for (int y = -2; y <= 2; y++) {
+    float d = unpackRGBAToDepth(texture2D(shMap, sc.xy + vec2(float(x), float(y)) * st * 0.5));
+    float th = max(0.0, (sc.z - d) * shDepth - 0.012);
+    s += exp(-th * shHair);
+  }
+  return mix(1.0, s / 25.0, shDens);
+}
 void main(){
   vec4 tx = texture2D(tAlpha, vUv);
-  float ch = vAux.w;
-  float a = ch < 0.5 ? tx.r : (ch < 1.5 ? tx.g : tx.b);
   float t = vAux.x;
-  a *= smoothstep(0.0, rootFade + 1e-4, t);
-  float tipCut = 1.0 - tipFade * hash(vec2(floor(vUv.x * 700.0), 1.7));
-  a *= 1.0 - smoothstep(tipCut - tipFade * 0.5, tipCut + 1e-3, t);
+  float a = cardAlpha(tx);
   float aa = 1.0;
   if (alphaMode < 0.5) { aa = clamp((a - cut) / max(fwidth(a), 1e-4) + 0.5, 0.0, 1.0); if (aa < 0.02) discard; }
   else { if (a < cut * (0.4 + 1.2 * hash(gl_FragCoord.xy))) discard; }
@@ -41,21 +63,23 @@ void main(){
   float layerK = mix(0.72, 1.0, vAux.y * 0.5);
   float ao = mix(1.0 - aoAmt, 1.0, smoothstep(0.0, aoLen + 1e-4, t)) * layerK;
   vec3 diff = vec3(0.0), spec = vec3(0.0), sss = vec3(0.0);
+  float ks = keyShadow();
   for (int i = 0; i < 3; i++) {
     vec3 L = normalize(lDir[i]);
+    vec3 lc = lCol[i] * (i == 0 ? ks : 1.0);
     float nl = dot(N, L);
     float wrap = clamp(nl * 0.5 + 0.5, 0.0, 1.0);
     float tl = dot(T, L);
     float kk = sqrt(max(0.0, 1.0 - tl * tl));
-    diff += lCol[i] * kk * (0.3 + 0.7 * wrap);
+    diff += lc * kk * (0.3 + 0.7 * wrap);
     vec3 H = normalize(L + V);
     vec3 T1 = normalize(T + N * (sh1 + nz)), T2 = normalize(T + N * (sh2 + nz * 1.5));
     float d1 = dot(T1, H), d2 = dot(T2, H);
     float s1 = pow(sqrt(max(0.0, 1.0 - d1 * d1)), exp1);
     float s2 = pow(sqrt(max(0.0, 1.0 - d2 * d2)), exp2);
     float m = smoothstep(-0.25, 0.45, nl);
-    spec += lCol[i] * m * (spec1Col * s1 + spec2Col * s2 * 0.6);
-    sss += lCol[i] * pow(clamp(dot(-L, V), 0.0, 1.0), 3.0) * (1.0 - wrap * 0.5);
+    spec += lc * m * (spec1Col * s1 + spec2Col * s2 * 0.6);
+    sss += lc * pow(clamp(dot(-L, V), 0.0, 1.0), 3.0) * (1.0 - wrap * 0.5);
   }
   vec3 amb = mix(gndCol, skyCol, N.y * 0.5 + 0.5);
   vec3 col = albedo * (diff * 0.32 + amb) * ao + spec * specAmt * ao * 0.22 + albedo * sss * sssAmt * 0.4;
@@ -83,7 +107,23 @@ export function makeHairMaterial(tAlpha, tColor) {
       sh1: { value: -0.1 }, sh2: { value: 0.2 }, specAmt: { value: 1 }, sssAmt: { value: 0.3 },
       aoAmt: { value: 0.6 }, aoLen: { value: 0.35 }, cut: { value: 0.35 }, rootFade: { value: 0.03 }, tipFade: { value: 0.25 },
       gradA: { value: 0.0 }, gradB: { value: 1.0 }, alphaMode: { value: 0 }, showAO: { value: 0 },
+      shMap: { value: null }, shMat: { value: new THREE.Matrix4() }, shOn: { value: 0 }, shRadius: { value: 2 }, shDepth: { value: 10 }, shDens: { value: 0 }, shHair: { value: 22 },
     },
   });
   return m;
+}
+
+// alpha-tested depth for the key shadow map (shares the card uniforms)
+export function makeHairDepthMaterial(hairMat) {
+  const u = hairMat.uniforms;
+  return new THREE.ShaderMaterial({
+    vertexShader: vert,
+    fragmentShader: `#include <packing>
+uniform sampler2D tAlpha; uniform float cut, rootFade, tipFade;
+varying vec2 vUv; varying vec4 vAux;
+${alphaFn}
+void main(){ if (cardAlpha(texture2D(tAlpha, vUv)) < cut) discard; gl_FragColor = packDepthToRGBA(gl_FragCoord.z); }`,
+    uniforms: { tAlpha: u.tAlpha, cut: u.cut, rootFade: u.rootFade, tipFade: u.tipFade },
+    side: THREE.DoubleSide,
+  });
 }

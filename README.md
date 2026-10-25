@@ -39,3 +39,11 @@ The «حواجب PBR» tab embeds the Eyebrow PBR Generator: it generates 2048×
 
 ## Reference-style presets
 `quiff` (classic volume, tapered sides), `wavylong` (shoulder-length wavy layers, ash blonde) and `skinfade` (stippled skin fade to bare nape, short textured top with crown whorl). The fade sliders (تدرج الجوانب / بداية / نهاية) work on any style.
+
+## الإضاءة (تقنيات Maya / Arnold)
+تبويب الإضاءة يستخدم رِغ استوديو بأسلوب Maya:
+- **ثلاث نقاط مساحية**: رئيسي (Key) وتعبئة (Fill) وحافة (Rim)، ولكل منها اتجاه وارتفاع وشدة وحرارة لون بالكلفن (مثل «Use Color Temperature» في Arnold).
+- **ظل الضوء الرئيسي**: ظل ناعم يتحكم بنعومته «حجم المصدر». الشعر يلقي ظله على فروة الرأس والجبهة، وظل الشعر الذاتي تقريب لـ Deep Shadow Map (الطبقات الداخلية أغمق حسب السماكة).
+- **قبة سماوية (Skydome/IBL)**: بيئة PMREM فيها صناديق إضاءة باتجاه الأضواء، فتعطي انعكاسات ولمعة في العين، وإضاءة محيطة بحرارة لون السماء.
+- **Light Linking**: خيار «الحافة على الشعر فقط» يفصل الشعر عن الخلفية دون إضاءة الوجه.
+- إعدادات جاهزة: بورتريه سينمائي، رامبرانت، لوب، فراشة، انقسام، إضاءة خلفية، استوديو، عرض Maya الافتراضي، شمس، غائم، داخلي.
