@@ -73,7 +73,8 @@ function smoothLengths(roots, L, iters = 2, K = 6) {
 }
 
 // returns strand specs { pts, n, group, type, layer, w }
-export function generateHair({ meshes, F, collider, center }, S) {
+export function generateHair({ meshes, F, collider, center }, S, { parts = null } = {}) {
+  const want = (k) => !parts || parts.includes(k);
   const s = F.R / REF.R, out = [], tris = sampler(meshes, F, S), rnd = Math.random;
   const fol = new THREE.Vector3(), sty = new THREE.Vector3();
   const grow = (r, len, extra) => {
@@ -85,7 +86,7 @@ export function generateHair({ meshes, F, collider, center }, S) {
   };
   // scalp + inner layer
   const scalpIds = [1, 2, 3, 4, 5, 6, 7];
-  if (S.count > 0 && S.len > 0) {
+  if (want('scalp') && S.count > 0 && S.len > 0) {
     const roots = sampleRoots(tris, F, S, scalpIds, S.count, 0.62 * Math.sqrt(3.6 / S.count) * s, (reg, q, mk) => mk);
     const L = new Float32Array(roots.length);
     roots.forEach((r, i) => { L[i] = S.len * S.reg[r.id - 1] * (1 + (rnd() - 0.5) * 2 * S.lenVar); });
@@ -104,15 +105,15 @@ export function generateHair({ meshes, F, collider, center }, S) {
       out.push({ pts, n: r.n, group, type, layer: 2, w: 0.8 + rnd() * 0.4 });
     }
   };
-  if (S.brows !== 'none') {
+  if (want('brow') && S.brows !== 'none' && !S.pbrNoBrowCards) {
     const thick = S.brows === 'thick' ? 1.25 : S.brows === 'thin' ? 0.7 : 1;
-    face([REG.BROW], Math.round(280 * thick), 0.006, (reg) => reg.w, () => (0.045 + rnd() * 0.035) * thick, 2, 5);
+    face([REG.BROW], Math.round(280 * thick), 0.006, (reg) => reg.w, () => (S.pbrBrowLen ? S.pbrBrowLen * (0.6 + 0.8 * rnd()) : (0.045 + rnd() * 0.035) * thick), 2, 5);
   }
-  if (S.mous !== 'none') {
+  if (want('mous') && S.mous !== 'none' && !S.pbrNoMousCards) {
     const k = { thin: 0.5, full: 1, chevron: 1.35 }[S.mous] || 1;
-    face([REG.MOUS], Math.round(320 * k), 0.006, (reg) => reg.w, (r) => (0.06 + rnd() * 0.04 + 0.05 * Math.abs(r.q.x) / 0.26) * (0.6 + 0.4 * k), 3, 5, { lift: 0.18 });
+    face([REG.MOUS], Math.round(320 * k), 0.006, (reg) => reg.w, (r) => (S.pbrMousLen ? S.pbrMousLen * (0.6 + 0.8 * rnd()) : (0.06 + rnd() * 0.04 + 0.05 * Math.abs(r.q.x) / 0.26) * (0.6 + 0.4 * k)), 3, 5, { lift: 0.18 });
   }
-  if (['short', 'full', 'goatee', 'chinstrap'].includes(S.beard)) {
+  if (want('beard') && ['short', 'full', 'goatee', 'chinstrap'].includes(S.beard)) {
     const full = S.beard !== 'short';
     face([REG.BEARD, REG.NECK], full ? 900 : 1000, full ? 0.011 : 0.009, (reg, q) => reg.w * beardShape(q, reg.id, S),
       (r) => S.beardLen * (0.7 + 0.6 * rnd()) * (r.id === REG.NECK ? 0.7 : 1), 4, full ? 1 : 5,

@@ -9,9 +9,10 @@ const clone = (o) => JSON.parse(JSON.stringify(o));
 const S = { ...clone(STYLE_DEFAULTS), texRes: 2048, view: 'texture', showFlow: false, auto: true };
 import { makeProceduralHead, bakeImported, Collider, refreshMaskColors, skin } from './head.js';
 import * as PORTRAIT from './portrait.js';
-import { computeFrame, toRef, fromRef, regionAt, follicleDir, REGION_INFO, isScalp } from './regions.js';
+import { computeFrame, toRef, fromRef, regionAt, follicleDir, REGION_INFO, isScalp, REG } from './regions.js';
 import { computeUVs, bakeHeadTexture, checkerCanvas, regionColors } from './headtex.js';
 import { generateHair } from './smart.js';
+import * as PBR from './browpbr.js';
 import { PRESETS as STYLE_PRESETS, STYLE_DEFAULTS, HAIR_COLORS, SKIN_TONES, SHADE, groupTemplates } from './styles.js';
 import { makeHairMaterial } from './shader.js';
 import { mkTabs, head as h3, note, slider, check, color, select, buttons, refreshUI, onRefresh } from './ui.js';
@@ -114,9 +115,11 @@ const snapshot = () => ({
   guides: guides.map((g) => ({ pts: g.pts.slice(), n: g.normal.toArray(), type: g.type, layer: g.layer, w: g.wScale, seed: g.seed, group: g.group })),
   masks: headMeshes.map((m) => m.userData.mask.slice()),
   groups: JSON.parse(JSON.stringify(groups)), active: P.activeGroup,
+  pbr: JSON.stringify(PB.layers),
 });
 const restore = (s) => {
   guides = s.guides.map((o) => { const g = newGuide(fitN(o.pts), new THREE.Vector3().fromArray(o.n), o.type, o.layer, o.group || 0); g.wScale = o.w; g.seed = o.seed; return g; });
+  if (s.pbr && s.pbr !== JSON.stringify(PB.layers)) { PB.layers = JSON.parse(s.pbr); regenPBR('eyebrow'); regenPBR('mustache'); bakeTexture(); }
   if (s.groups) { groups = JSON.parse(JSON.stringify(s.groups)); P.activeGroup = Math.min(s.active || 0, groups.length - 1); refreshUI(); }
   headMeshes.forEach((m, i) => { if (s.masks[i] && s.masks[i].length === m.userData.mask.length) { m.userData.mask.set(s.masks[i]); refreshMaskColors(m, P.showMask); } });
   topoDirty = hairDirty = true; resetSim();
@@ -336,6 +339,7 @@ function generateStyle({ undo = true } = {}) {
     if (old) { g.visible = old.visible; g.lockEdit = old.lockEdit; g.lockPhys = old.lockPhys; g.tint = old.tint; g.bright = old.bright; }
     return g;
   }).concat(custom.map(([g]) => g));
+  syncPBRColor();
   const strands = generateHair({ meshes: headMeshes, F: frame, collider, center: headCenter }, S);
   guides = kept.concat(strands.map((st) => { const g = newGuide(st.pts, st.n, st.type, st.layer, st.group); g.wScale = st.w; return g; }));
   const hc = HAIR_COLORS[S.color] || HAIR_COLORS.darkbrown; P.rootColor = hc[1]; P.tipColor = hc[2];
@@ -399,6 +403,92 @@ function updateFlowLines() {
   }
   flowGeo.setAttribute('position', new THREE.Float32BufferAttribute(P3, 3));
   flowGeo.setAttribute('color', new THREE.Float32BufferAttribute(C3, 3));
+}
+
+/* ---------------- eyebrow / moustache PBR ---------------- */
+const PB = { target: 'eyebrow', layers: { eyebrow: PBR.makeLayer('eyebrow'), mustache: PBR.makeLayer('mustache') }, view: 'Preview', gen: { eyebrow: null, mustache: null } };
+const PBL = new Proxy({}, { get: (_, k) => PB.layers[PB.target][k], set: (_, k, v) => { PB.layers[PB.target][k] = v; return true; } });
+const pbrColor = (L) => (L.useHair ? (HAIR_COLORS[S.color] || HAIR_COLORS.darkbrown)[2] : L.color);
+function regenPBR(type, draft = false) {
+  const L = PB.layers[type];
+  PB.gen[type] = PBR.generate(L, { draft, color: pbrColor(L) }); PB.gen[type].color = pbrColor(L);
+  installPBR();
+  return PB.gen[type];
+}
+function syncPBRColor() {
+  for (const t of ['eyebrow', 'mustache']) if (PB.gen[t] && PB.gen[t].color !== pbrColor(PB.layers[t])) regenPBR(t);
+  installPBR();
+}
+function installPBR() {
+  const on = (t) => !!PB.gen[t] && PB.layers[t].mode !== 'cards' && (t === 'eyebrow' ? S.brows !== 'none' : S.mous !== 'none');
+  const bOn = on('eyebrow'), mOn = on('mustache'), LB = PB.layers.eyebrow, LM = PB.layers.mustache, GB = PB.gen.eyebrow, GM = PB.gen.mustache;
+  const kpx = (L) => (0.36 / 1000) * L.scale;
+  Object.assign(S, {
+    pbrBrowOn: bOn, pbrMousOn: mOn,
+    pbrNoBrowCards: bOn && LB.mode === 'texture', pbrNoMousCards: mOn && LM.mode === 'texture',
+    pbrBrowLen: bOn ? LB.slen * kpx(LB) : 0, pbrMousLen: mOn ? LM.slen * kpx(LM) : 0,
+    pbrField: bOn || mOn ? (q) => {
+      if (bOn) { const w = PBR.fieldW(q, LB, GB); if (w > 0.03) return { id: REG.BROW, w }; }
+      if (mOn) { const w = PBR.fieldW(q, LM, GM); if (w > 0.03) return { id: REG.MOUS, w }; }
+      return null;
+    } : null,
+    pbrDir: (q, id, out) => (id === REG.BROW ? bOn && PBR.fieldDir(q, LB, GB, out) : mOn && PBR.fieldDir(q, LM, GM, out)),
+    pbrComposite: bOn || mOn ? (q, c) => { if (bOn) PBR.composite(q, c, LB, GB); if (mOn) PBR.composite(q, c, LM, GM); } : null,
+  });
+}
+let mapCanvas = null, mapInfo = null;
+function drawMapView() {
+  const G = PB.gen[PB.target]; if (!mapCanvas || !G) return;
+  if (PB.view === 'Preview') PBR.renderPreview(G, PB.layers[PB.target].light);
+  const x = mapCanvas.getContext('2d'); x.fillStyle = '#000'; x.fillRect(0, 0, mapCanvas.width, mapCanvas.height);
+  x.imageSmoothingQuality = 'high'; x.drawImage(G.maps[PB.view], 0, 0, mapCanvas.width, mapCanvas.height);
+  mapInfo.textContent = `${PBR.TW}×${PBR.TH} · ${G.strands} شعرة · ${G.ms.toFixed(0)}ms${G.draft ? ' · مسودة' : ''}`;
+}
+// strand cards of the face only, so brush edits on the scalp survive PBR tweaks
+function regenFace(parts) {
+  if (!frame) return;
+  const idx = { brow: 2, mous: 3 }, drop = parts.map((p) => idx[p]);
+  guides = guides.filter((g) => !drop.includes(g.group));
+  for (const st of generateHair({ meshes: headMeshes, F: frame, collider, center: headCenter }, S, { parts })) {
+    const g = newGuide(st.pts, st.n, st.type, st.layer, st.group); g.wScale = st.w; guides.push(g);
+  }
+  topoDirty = hairDirty = true; resetSim();
+}
+let pbrTimer = 0, pbrFullTimer = 0;
+function schedulePBR(full = true) {
+  clearTimeout(pbrTimer); clearTimeout(pbrFullTimer);
+  const t = PB.target;
+  pbrTimer = setTimeout(() => {
+    regenPBR(t, true); drawMapView();
+    pbrFullTimer = setTimeout(() => {
+      regenPBR(t, false); drawMapView(); bakeTexture();
+      if (S.auto) regenFace([t === 'eyebrow' ? 'brow' : 'mous']);
+    }, full ? 450 : 0);
+  }, 120);
+}
+function exportPBRMaps() {
+  const G = PB.gen[PB.target]; if (!G) return;
+  PBR.renderPreview(G, PB.layers[PB.target].light);
+  PBR.MAPS.forEach((m, i) => setTimeout(() => G.maps[m].toBlob((b) => download(`${PB.target}_${m}.png`, b, 'image/png')), i * 350));
+}
+function finishPbrDraw() {
+  const st = stroke; if (!st || st.pts.length < 3 || !frame) return setHint('ارسم خطاً أطول على الحاجب أو الشارب.');
+  const q = new THREE.Vector3(), refs = st.pts.map((p) => toRef(p, frame, q).clone());
+  const my = refs.reduce((a, r) => a + r.y, 0) / refs.length;
+  PB.target = my > 0.3 ? 'eyebrow' : 'mustache';
+  const L = PB.layers[PB.target];
+  let px = refs.map((r) => PBR.refToPx(r, L, [0, 0]));
+  if (Math.abs(refs[0].x) > Math.abs(refs[refs.length - 1].x)) px.reverse();
+  const cum = [0]; for (let i = 1; i < px.length; i++) cum.push(cum[i - 1] + Math.hypot(px[i][0] - px[i - 1][0], px[i][1] - px[i - 1][1]));
+  const tot = cum[cum.length - 1], CS = []; let j = 0;
+  for (let i = 0; i < 10; i++) {
+    const d = (i / 9) * tot; while (j < px.length - 2 && cum[j + 1] < d) j++;
+    const f = (d - cum[j]) / (cum[j + 1] - cum[j] || 1); CS.push([px[j][0] + (px[j + 1][0] - px[j][0]) * f, px[j][1] + (px[j + 1][1] - px[j][1]) * f]);
+  }
+  pushUndo();
+  L.CS = CS; if (L.mode === 'cards') L.mode = 'both';
+  refreshUI(); schedulePBR(false);
+  setHint(`تم تحويل الخط إلى منحنى ${PB.target === 'eyebrow' ? 'الحاجب' : 'الشارب'} (متناظر). «إعادة الشكل» لإلغائه.`);
 }
 
 /* ---------------- sim ---------------- */
@@ -496,6 +586,7 @@ const TOOLS = [
   ['puff', 'رفع / كثافة', 'P', 'يرفع المسارات عن الفروة؛ Shift لخفضها.'],
   ['erase', 'حذف', 'E', 'يحذف المسارات تحت الفرشاة.'],
   ['assign', 'نقل للمجموعة', 'G', 'ينقل المسارات تحت الفرشاة إلى المجموعة النشطة (مثل اختيار منحنيات في Blender).'],
+  ['pbrdraw', 'رسم شكل الحاجب/الشارب', 'B', 'ارسم خط الحاجب أو الشارب على الوجه من الداخل للخارج؛ يتحول إلى منحنى PBR متناظر وتتبعه البطاقات.'],
   ['mask', 'رسم منطقة الفروة', 'M', 'ارسم المنطقة التي ينمو منها الشعر؛ Shift للمسح.'],
 ];
 const toolBox = $('tools');
@@ -531,8 +622,8 @@ canvas.addEventListener('pointerdown', (e) => {
   canvas.setPointerCapture(e.pointerId);
   stroke = { x: e.clientX, y: e.clientY, lx: e.clientX, ly: e.clientY, undo: false, pts: [], nrm: [], air: false, lastHit: null };
   const t = P.tool;
-  if (t === 'draw') {
-    if (activeLocked()) { stroke = null; setHint('المجموعة النشطة مقفلة للتحرير أو مخفية.'); return; }
+  if (t === 'draw' || t === 'pbrdraw') {
+    if (t === 'draw' && activeLocked()) { stroke = null; setHint('المجموعة النشطة مقفلة للتحرير أو مخفية.'); return; }
     screenRay(e.clientX, e.clientY); const h = surfaceHit();
     if (!h) { stroke = null; setHint('ابدأ الرسم من فوق سطح الرأس.'); return; }
     stroke.pts.push(h.point.clone()); stroke.nrm.push(h.face.normal.clone()); updateStrokeLine();
@@ -547,6 +638,7 @@ canvas.addEventListener('pointermove', (e) => {
 const end = (e) => {
   if (!stroke) return;
   if (P.tool === 'draw') finishDraw();
+  if (P.tool === 'pbrdraw') finishPbrDraw();
   if (P.tool === 'mask' && stroke.undo) { maskPainted = true; scheduleBake(); }
   if (P.tool === 'mask' || P.tool === 'spray' || P.tool === 'draw') computeCrown();
   stroke = null; strokeGeo.setDrawRange(0, 0);
@@ -572,7 +664,7 @@ function updateStrokeLine() {
 function apply(e, first) {
   const t = P.tool;
   if (t !== 'mask' && first && ['draw', 'spray'].includes(t) && activeLocked()) { setHint('المجموعة النشطة مقفلة للتحرير أو مخفية.'); stroke = null; return; }
-  if (t === 'draw') return drawMove(e);
+  if (t === 'draw' || t === 'pbrdraw') return drawMove(e);
   if (t === 'mask') return paintMask(e);
   const dx = e.clientX - stroke.lx, dy = e.clientY - stroke.ly;
   if (t === 'spray') return spray(e, first);
@@ -585,7 +677,7 @@ function drawMove(e) {
   screenRay(e.clientX, e.clientY);
   const h = surfaceHit();
   let pt = null;
-  if (!st.air) { if (h) pt = h.point; else st.air = true; }
+  if (P.tool === 'pbrdraw') { if (!h) return; pt = h.point; } else if (!st.air) { if (h) pt = h.point; else st.air = true; }
   if (st.air) {
     camera.getWorldDirection(camDir);
     const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(camDir, last);
@@ -744,7 +836,7 @@ function brushOp(tool, cx, cy, dx, dy, shift) {
 }
 
 /* ---------------- tabs / panels ---------------- */
-const tabEls = mkTabs($('tabs'), $('tabBody'), [['st', 'تسريحة ذكية'], ['grp', 'المجموعات'], ['g', 'المسارات'], ['c', 'البطاقات'], ['s', 'الخامة'], ['l', 'الإضاءة'], ['p', 'فيزياء'], ['x', 'ملفات']]);
+const tabEls = mkTabs($('tabs'), $('tabBody'), [['st', 'تسريحة ذكية'], ['pbr', 'حواجب PBR'], ['grp', 'المجموعات'], ['g', 'المسارات'], ['c', 'البطاقات'], ['s', 'الخامة'], ['l', 'الإضاءة'], ['p', 'فيزياء'], ['x', 'ملفات']]);
 const dirty = () => { hairDirty = true; };
 const topo = () => { topoDirty = hairDirty = true; };
 {
@@ -768,7 +860,7 @@ const topo = () => { topoDirty = hairDirty = true; };
   slider(p, S, 'curl', 'التجعيد', 0, 1.5, 0.01, g);
   slider(p, S, 'curlFreq', 'ضيق اللفات', 2, 18, 0.1, g);
   slider(p, S, 'frizz', 'الهيشان', 0, 0.3, 0.005, g);
-  select(p, S, 'color', 'لون الشعر', () => Object.entries(HAIR_COLORS).map(([k, v]) => [k, v[0]]), custom(() => { const hc = HAIR_COLORS[S.color]; P.rootColor = hc[1]; P.tipColor = hc[2]; applyShading(); refreshUI(); scheduleBake(); }));
+  select(p, S, 'color', 'لون الشعر', () => Object.entries(HAIR_COLORS).map(([k, v]) => [k, v[0]]), custom(() => { const hc = HAIR_COLORS[S.color]; P.rootColor = hc[1]; P.tipColor = hc[2]; applyShading(); refreshUI(); syncPBRColor(); drawMapView(); scheduleBake(); }));
   select(p, S, 'skin', 'لون البشرة', () => Object.entries(SKIN_TONES).map(([k, v]) => [k, v[0]]), scheduleBake);
   h3(p, 'أجزاء الرأس (طول نسبي لكل جزء)');
   ['المقدمة', 'الأعلى', 'التاج', 'الجانبان', 'الخلف', 'القفا', 'السوالف'].forEach((nm, i) => slider(p, S.reg, i, nm, 0, 2, 0.01, g));
@@ -798,6 +890,31 @@ const topo = () => { topoDirty = hairDirty = true; };
   const lg = document.createElement('div'); lg.className = 'legend'; p.appendChild(lg);
   REGION_INFO.forEach(([nm, col]) => { const s2 = document.createElement('span'); s2.innerHTML = `<i style="background:${col}"></i>${nm}`; lg.appendChild(s2); });
   note(p, 'الرأس يُقسَّم تلقائياً إلى أجزاء (حتى الوجه)، ولكل جزء نمط بصيلات طبيعي: دوامة التاج، تقارب القفا، سوالف للأسفل، حواجب وشارب ولحية باتجاهاتها. الجذر يتبع البصيلة ثم ينحني لاتجاه التسريح.');
+}
+{
+  const p = tabEls('pbr');
+  select(p, PB, 'target', 'الطبقة', () => [['eyebrow', 'الحواجب'], ['mustache', 'الشارب']], () => { refreshUI(); drawMapView(); });
+  select(p, PBL, 'mode', 'الاستخدام', () => [['both', 'نسيج PBR + بطاقات تتبعه'], ['texture', 'نسيج PBR فقط'], ['cards', 'بطاقات فقط (بدون PBR)']], () => {
+    installPBR(); bakeTexture(); regenFace([PB.target === 'eyebrow' ? 'brow' : 'mous']);
+  });
+  mapCanvas = document.createElement('canvas'); mapCanvas.width = 580; mapCanvas.height = 290; mapCanvas.className = 'mapview'; p.appendChild(mapCanvas);
+  mapInfo = document.createElement('div'); mapInfo.className = 'note'; p.appendChild(mapInfo);
+  const tabsRow = document.createElement('div'); tabsRow.className = 'maptabs'; p.appendChild(tabsRow);
+  const mbtn = PBR.MAPS.map((m) => { const b = document.createElement('button'); b.textContent = m; b.onclick = () => { PB.view = m; refreshUI(); drawMapView(); }; tabsRow.appendChild(b); return [m, b]; });
+  onRefresh(() => mbtn.forEach(([m, b]) => b.classList.toggle('on', m === PB.view)));
+  buttons(p, [['تصدير كل الخرائط PNG', exportPBRMaps], ['إعادة الشكل', () => { pushUndo(); PBR.resetShape(PB.layers[PB.target]); refreshUI(); schedulePBR(false); }], ['ارسم على الوجه (B)', () => setTool('pbrdraw')]]);
+  h3(p, 'الشعيرات');
+  PBR.PARAMS.forEach(([k, label, mn, mx, st]) => slider(p, PBL, k, label, mn, mx, st, () => schedulePBR()));
+  check(p, PBL, 'useHair', 'لون الشعر نفسه', () => schedulePBR(false));
+  color(p, PBL, 'color', 'لون مخصص', () => { PB.layers[PB.target].useHair = false; refreshUI(); schedulePBR(false); });
+  slider(p, PBL, 'light', 'زاوية ضوء المعاينة', 0, 360, 5, () => { if (PB.view === 'Preview') drawMapView(); });
+  h3(p, 'الموضع على الرأس');
+  slider(p, PBL, 'strength', 'قوة النسيج', 0, 1.5, 0.01, () => scheduleBake());
+  slider(p, PBL, 'scale', 'الحجم', 0.5, 1.8, 0.01, () => schedulePBR(false));
+  slider(p, PBL, 'dx', 'إزاحة أفقية', -0.15, 0.15, 0.002, () => schedulePBR(false));
+  slider(p, PBL, 'dy', 'إزاحة رأسية', -0.15, 0.15, 0.002, () => schedulePBR(false));
+  slider(p, PBL, 'rot', 'الدوران °', -40, 40, 0.5, () => schedulePBR(false));
+  note(p, 'مولّد خرائط PBR للحواجب والشارب مدمج: الخرائط تُخبز في نسيج الرأس (متناظرة)، وبطاقات الشعر تُزرع داخل شكلها وتتبع اتجاه شعيراتها. ارسم الشكل مباشرة على الوجه بالأداة B.');
 }
 {
   const p = tabEls('grp');
@@ -1015,14 +1132,16 @@ const download = (name, data, type = 'application/octet-stream') => {
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([data], { type })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
 };
 function saveProject() {
-  const prj = { v: 2, P: { ...P }, L: { ...L }, groups, guides: snapshot().guides.map((g) => ({ ...g, pts: Array.from(g.pts, (x) => +x.toFixed(5)) })), masks: headMeshes.map((m) => Array.from(m.userData.mask, (x) => Math.round(x * 100) / 100)) };
+  const prj = { v: 3, P: { ...P }, L: { ...L }, S, pbr: PB.layers, groups, guides: snapshot().guides.map((g) => ({ ...g, pts: Array.from(g.pts, (x) => +x.toFixed(5)) })), masks: headMeshes.map((m) => Array.from(m.userData.mask, (x) => Math.round(x * 100) / 100)) };
   download('hair-project.json', JSON.stringify(prj), 'application/json');
 }
 function loadProject(txt) {
   try {
     const o = JSON.parse(txt); Object.assign(P, o.P); Object.assign(L, o.L);
+    if (o.S) { const regArr = S.reg; Object.assign(S, o.S); regArr.splice(0, regArr.length, ...o.S.reg); S.reg = regArr; }
+    if (o.pbr) { PB.layers = o.pbr; regenPBR('eyebrow'); regenPBR('mustache'); drawMapView(); }
     pushUndo(); restore({ guides: o.guides.map((g) => ({ ...g, pts: Float32Array.from(g.pts) })), masks: o.masks.map((m) => Float32Array.from(m)), groups: o.groups || [mkGroup('شعر الرأس', '#2ee6a0')], active: 0 });
-    presetCols = PRESETS[L.preset] || PRESETS.studio; applyLights(); applyShading(); refreshUI(); computeCrown(); setHint('تم تحميل المشروع.');
+    presetCols = PRESETS[L.preset] || PRESETS.studio; applyLights(); applyShading(); refreshUI(); computeCrown(); bakeTexture(); setHint('تم تحميل المشروع.');
   } catch (err) { setHint('تعذر فتح المشروع: ' + err.message); }
 }
 function exportPNG() {
@@ -1120,7 +1239,9 @@ function loadPortrait() {
   headExtras = PORTRAIT.makeEyes(); headGroup.add(headExtras);
   presetCols = PRESETS.portrait; Object.assign(L, PRESETS.portrait.v, { preset: 'portrait' });
   applyLights();
+  if (!PB.gen.eyebrow) { regenPBR('eyebrow'); regenPBR('mustache'); }
   applyPreset(S.preset === 'custom' ? 'portrait' : S.preset);
+  drawMapView();
   undoStack.length = 0;
   controls.target.set(0, 0.45, 0.1); camera.position.set(0, 0.5, 6.2); controls.update();
 }
@@ -1179,5 +1300,5 @@ function tick(now) {
   await loadAtlas();
   loadPortrait();
   requestAnimationFrame(tick);
-  window.__hair = { rebuildEyes: (o) => { if (headExtras) headGroup.remove(headExtras); headExtras = PORTRAIT.makeEyes(o); headGroup.add(headExtras); }, loadPortrait, applyPreset, generateStyle, bakeTexture, applyHeadView, updateFlowLines, S, get frame() { return frame; }, get groups() { return groups; }, P, L, SIM, get guides() { return guides; }, camera, controls, setTool, generateFromMask, setHead, makeProceduralHead, applyShading, applyLights, brushOp, undo, redo };
+  window.__hair = { PB, regenPBR, drawMapView, schedulePBR, regenFace, rebuildEyes: (o) => { if (headExtras) headGroup.remove(headExtras); headExtras = PORTRAIT.makeEyes(o); headGroup.add(headExtras); }, loadPortrait, applyPreset, generateStyle, bakeTexture, applyHeadView, updateFlowLines, S, get frame() { return frame; }, get groups() { return groups; }, P, L, SIM, get guides() { return guides; }, camera, controls, setTool, generateFromMask, setHead, makeProceduralHead, applyShading, applyLights, brushOp, undo, redo };
 })();

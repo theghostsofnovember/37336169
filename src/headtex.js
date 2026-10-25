@@ -53,8 +53,8 @@ function skinAt(q, base, out) {
 export function hairDensity(q, mk, reg, o) {
   const id = reg.id;
   if (isScalp(id)) return mk * o.scalpTex;
-  if (id === REG.BROW) return o.brows === 'none' ? 0 : reg.w * 0.85;
-  if (id === REG.MOUS) return o.mous === 'none' ? 0 : reg.w * (o.mous === 'thin' ? 0.45 : 0.75);
+  if (id === REG.BROW) return o.brows === 'none' || o.pbrBrowOn ? 0 : reg.w * 0.85;
+  if (id === REG.MOUS) return o.mous === 'none' || o.pbrMousOn ? 0 : reg.w * (o.mous === 'thin' ? 0.45 : 0.75);
   if (id === REG.BEARD || id === REG.NECK) return o.beard === 'none' ? 0 : reg.w * beardShape(q, id, o) * (o.beard === 'stubble' ? 0.42 : 0.8) * (id === REG.NECK ? 0.7 : 1);
   return 0;
 }
@@ -98,6 +98,7 @@ export function bakeHeadTexture(meshes, F, o, size) {
           hc.copy(hair).multiplyScalar(0.6 + 0.7 * s);
           c.lerp(hc, Math.min(1, dens * (0.45 + 0.6 * s)));
         }
+        if (o.pbrComposite) o.pbrComposite(q, c);
         lin2s(c, D, k * 4); filled[k] = 1;
       }
     }

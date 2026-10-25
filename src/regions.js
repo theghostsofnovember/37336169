@@ -78,11 +78,13 @@ export function regionAt(p, o) {
   const sbBand = sstep(1.1, 1.18, th) * (1 - sstep(1.42, 1.48, th));
   if (sbBand > 0.01 && y > h - o.sideburn - 0.02) return ret(REG.SIDEBURN, sbBand * sstep(h - o.sideburn - 0.02, h - o.sideburn + 0.015, y));
   if (th > 1.5) return ret(REG.SKIN, 0);
-  if (p.z > 0.4 && ax > 0.04 && ax < 0.47 && y > 0.4) {
+  // PBR eyebrow / moustache layers replace the built-in shapes
+  if (o.pbrField) { const f = o.pbrField(p); if (f) return ret(f.id, f.w); }
+  if (!o.pbrBrowOn && p.z > 0.4 && ax > 0.04 && ax < 0.47 && y > 0.4) {
     const u = Math.min(1, Math.max(0, (ax - 0.07) / 0.36)), half = 0.024 * (1 - 0.45 * u) * o.browThick, d = Math.abs(y - browY(u));
     if (d < half + 0.01) return ret(REG.BROW, sstep(half + 0.01, half - 0.006, d) * sstep(0.045, 0.075, ax) * (1 - sstep(0.43, 0.465, ax)));
   }
-  if (p.z > 0.58 && y < 0.04 && y > -0.09) {
+  if (!o.pbrMousOn && p.z > 0.58 && y < 0.04 && y > -0.09) {
     const half = 0.1 + 0.16 * sstep(0.04, -0.09, y);
     if (ax < half + 0.01) return ret(REG.MOUS, sstep(half + 0.01, half - 0.02, ax) * sstep(0.045, 0.02, y));
   }
@@ -126,6 +128,8 @@ export function follicleDir(p, n, id, o, out) {
     out.x -= sx * 0.55 * sstep(0.45, 0.05, p.y) * sstep(1.9, 2.6, th);
     const sb = sstep(1.0, 1.22, th) * (1 - sstep(1.5, 1.75, th)) * sstep(0.8, 0.55, p.y);
     out.lerp(tmp.set(0, -1, 0.2), sb);
+  } else if ((id === REG.BROW || id === REG.MOUS) && o.pbrDir && o.pbrDir(p, id, out)) {
+    // direction from the PBR layer's strand field
   } else if (id === REG.BROW) {
     const u = Math.min(1, Math.max(0, (ax - 0.07) / 0.36));
     out.set(sx, 0.9 * (1 - sstep(0, 0.35, u)) - 0.25 * sstep(0.6, 1, u), 0);
