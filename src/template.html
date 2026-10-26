@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>HeadForge Studio Pro · 3D Character Creator</title>
+<style>
+:root{--bg:#0e0f11;--bg2:#141518;--panel:#1a1c20;--panel2:#22252a;--ink:#e9e6e1;--mute:#8d9097;--line:#2c2f35;--acc:#4fb3d9;--acc2:#e0a030;--accink:#06141b;--bad:#d9534f}
+:root[data-theme="light"]{--bg:#eceae6;--bg2:#e2e0dc;--panel:#fff;--panel2:#f4f3f1;--ink:#1d1b19;--mute:#6b6762;--line:#d6d3ce;--acc:#2f6f8f;--acc2:#b8761a;--accink:#fff}
+*{box-sizing:border-box}html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:13px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans Arabic",Tahoma,sans-serif}
+.app{display:grid;grid-template-columns:72px minmax(0,1fr) 340px;grid-template-rows:48px minmax(0,1fr);height:100vh}
+header{grid-column:1/-1;display:flex;align-items:center;gap:10px;padding:0 10px;background:var(--bg2);border-bottom:1px solid var(--line);overflow-x:auto;white-space:nowrap}
+.brand{display:flex;align-items:baseline;gap:6px;margin-inline-end:6px}.brand b{font-size:16px;letter-spacing:.3px}.brand span{color:var(--acc);font-weight:700;font-size:12px}
+.sep{width:1px;height:24px;background:var(--line);flex:none}.grow{flex:1}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;flex:none}.seg button{border:0;border-radius:0;width:auto;padding:6px 10px;background:transparent}.seg button+button{border-inline-start:1px solid var(--line)}
+.seg button.on{background:var(--acc);color:var(--accink);font-weight:600}
+header button,header select{width:auto;padding:6px 10px;flex:none}
+.rail{grid-row:2;display:flex;flex-direction:column;gap:2px;padding:6px 4px;background:var(--bg2);border-inline-end:1px solid var(--line);overflow-y:auto}
+.rail button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:7px 2px;border:0;background:transparent;color:var(--mute);border-radius:8px;font-size:10.5px;line-height:1.15}
+.rail button i{font-style:normal;font-size:19px;line-height:1}.rail button:hover{background:var(--panel2);color:var(--ink)}.rail button.on{background:var(--panel2);color:var(--acc);box-shadow:inset 3px 0 0 var(--acc)}
+#stage{grid-row:2;position:relative;touch-action:none;min-height:320px;cursor:grab;overflow:hidden;background:radial-gradient(circle at 50% 40%,#2a2d33,#0b0c0e)}
+#stage.trans{background:repeating-conic-gradient(#3a3a3a 0 25%,#2a2a2a 0 50%) 0 0/24px 24px}
+canvas{display:block}#c{width:100%;height:100%}
+aside{grid-row:2;background:var(--panel);border-inline-start:1px solid var(--line);overflow:auto;position:relative;z-index:6}
+.tab{padding:14px}.tab h2{font-size:16px;margin:0 0 4px}.desc{margin:0 0 10px;color:var(--mute);font-size:12px}
+.row{margin:0 0 8px}.row label{display:flex;justify-content:space-between;color:var(--mute);font-size:12px;margin-bottom:1px;gap:8px}.row b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--acc);margin:2px 0}
+.cols{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px}.cols label{font-size:11px;color:var(--mute);display:block}.cols input[type=color]{width:100%;height:30px;border:1px solid var(--line);border-radius:6px;background:var(--bg);padding:2px}
+button,select{font:inherit;color:var(--ink);background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:7px;width:100%;cursor:pointer}
+button:hover{border-color:var(--acc)}button:disabled{opacity:.45;cursor:default}
+button.p{background:var(--acc);color:var(--accink);border-color:var(--acc);font-weight:600}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.note{font-size:12px;color:var(--mute);min-height:16px}
+.chk{display:flex;align-items:center;gap:6px;color:var(--ink);font-size:12.5px;margin:0 0 8px;cursor:pointer}
+[hidden]{display:none!important}
+details.sec{border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin:8px 0;background:var(--bg2)}
+details.sec>summary{cursor:pointer;font-weight:600;font-size:12.5px;list-style:none;display:flex;justify-content:space-between}
+details.sec>summary::after{content:"▾";color:var(--mute)}details.sec:not([open])>summary::after{content:"▸"}
+.secb{margin-top:8px}
+.chips{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 8px}.chips button{width:auto;padding:5px 9px;font-size:12px}.chips button.on{background:var(--acc);color:var(--accink);border-color:var(--acc);font-weight:600}
+.sw{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}.sw button{width:26px;height:26px;padding:0;border-radius:50%;border:2px solid var(--line)}.sw button:hover{border-color:var(--ink)}
+#wheel,#pal{display:block;margin:4px auto 10px;border-radius:12px;touch-action:none;cursor:crosshair;max-width:100%}
+#hud{position:absolute;inset-inline-start:12px;top:12px;display:flex;gap:8px;flex-wrap:wrap;z-index:3}
+#hud>*{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:5px 10px;font-weight:600;font-variant-numeric:tabular-nums}
+#toast{position:absolute;left:50%;top:14px;transform:translate(-50%,-8px);background:var(--acc);color:var(--accink);padding:8px 14px;border-radius:999px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;max-width:80%;text-align:center;z-index:4}
+#toast.show{opacity:1;transform:translate(-50%,0)}#toast.bad{background:var(--bad);color:#fff}
+#res{position:absolute;inset:0;display:grid;place-items:center;background:#0008;z-index:7}
+#res .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px 24px;text-align:center;min-width:240px}
+#res h2{margin:0 0 6px;font-size:30px;color:var(--acc2)}#res p{margin:0 0 12px;white-space:pre-line}#res button{margin:3px 0}
+#cm{position:absolute;top:0;inset-inline-end:0;bottom:0;width:min(400px,100%);background:color-mix(in srgb,var(--panel) 94%,transparent);border-inline-start:1px solid var(--line);padding:14px;overflow:auto;transform:translateX(105%);transition:transform .25s;z-index:5}
+[dir=rtl] #cm{transform:translateX(-105%)}#cm.open{transform:none!important}#cm:not(.open){visibility:hidden;pointer-events:none}.cmh{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px}.cmh button{width:auto}
+.slot{margin:0 0 10px}.slot .t{font-size:12px;color:var(--mute);margin-bottom:4px}.opts2{display:flex;flex-wrap:wrap;gap:6px}.opts2 button{width:auto;padding:6px 10px;font-size:13px}
+.opts2 button.on{background:var(--acc);color:var(--accink);border-color:var(--acc);font-weight:600}
+.sb{display:grid;grid-template-columns:90px 1fr;gap:8px;align-items:center;font-size:12px;color:var(--mute);margin:4px 0}.sb i{display:block;height:8px;border-radius:4px;background:var(--acc);transition:width .2s}.sb u{display:block;background:var(--line);border-radius:4px}
+#mini{width:100%;height:auto;margin-top:6px;border-radius:6px;background:var(--bg)}
+#sbar{position:absolute;inset-inline:0;bottom:0;display:flex;gap:14px;padding:5px 12px;font-size:11px;color:var(--mute);background:linear-gradient(transparent,#0009);pointer-events:none;font-variant-numeric:tabular-nums;z-index:2}
+#hint{position:absolute;inset-inline-start:12px;bottom:26px;font-size:12px;color:#cfd2d6;text-shadow:0 1px 2px #000;pointer-events:none;z-index:2;max-width:70%}
+.kbd{display:inline-block;border:1px solid var(--line);border-radius:4px;padding:0 4px;font-size:11px;background:var(--panel2)}
+@media (max-width:900px){.app{grid-template-columns:1fr;grid-template-rows:auto 58vh auto auto;height:auto;min-height:100vh}
+ header{grid-column:1}.rail{grid-row:3;flex-direction:row;overflow-x:auto;border:0;border-bottom:1px solid var(--line)}.rail button{min-width:62px}
+ #stage{grid-row:2}aside{grid-row:4;border:0}}
+</style></head><body>
+<div class="app">
+<header>
+ <div class="brand"><b>HeadForge</b><span>STUDIO PRO</span></div>
+ <button id="undo" data-ten="Undo (Ctrl+Z)" data-tar="تراجع (Ctrl+Z)" disabled>↶</button><button id="redo" data-ten="Redo (Ctrl+Y)" data-tar="إعادة (Ctrl+Y)" disabled>↷</button>
+ <span class="sep"></span>
+ <div class="seg" id="modes"><button id="tOrb" class="on"></button><button id="tSculpt"></button><button id="tClip"></button></div>
+ <span class="sep"></span>
+ <select id="vmode" data-path="view.mode"></select>
+ <div class="seg" id="camp"></div>
+ <button id="turn"></button>
+ <span class="grow"></span>
+ <button id="rndTop"></button><button id="theme" data-ten="Light / dark" data-tar="فاتح / داكن">◐</button><button id="lang"></button>
+</header>
+<nav class="rail" id="rail"></nav>
+<div id="stage"><canvas id="c"></canvas>
+ <div id="hud" hidden><span id="hS"></span><span id="hT"></span><span id="hA"></span><span id="hC"></span><span id="hM"></span></div>
+ <div id="toast"></div>
+ <div id="res" hidden><div class="card"><h2 id="rT"></h2><p id="rP"></p><button id="rB" class="p"></button><button id="rX"></button></div></div>
+ <div id="cm"><div class="cmh"><b id="cmT"></b><button id="cmX"></button></div><div id="stats"></div><div id="opts"></div></div>
+ <div id="hint"></div>
+ <div id="sbar"><span id="sbF"></span><span id="sbV"></span><span id="sbH"></span><span id="phn"></span></div>
+</div>
+<aside id="panel"></aside>
+</div>
+<input type="file" id="ldF" accept=".json,application/json" hidden>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/*HEAD_DATA*/
+</script>
+<script>
+/*APP*/
+</script>
+</body></html>
