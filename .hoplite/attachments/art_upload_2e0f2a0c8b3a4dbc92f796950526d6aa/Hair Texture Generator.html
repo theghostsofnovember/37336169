@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hair Texture Generator</title>
+<style>
+:root{--bg:#f2f1ef;--panel:#fff;--ink:#1d1b19;--mute:#6b6762;--line:#d9d6d1;--acc:#2f6f8f;--accink:#fff;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15130f;--panel:#201d19;--ink:#ece8e1;--mute:#9a948b;--line:#38332d;--acc:#7fb4cf;--accink:#10202a}}
+:root[data-theme="dark"]{--bg:#15130f;--panel:#201d19;--ink:#ece8e1;--mute:#9a948b;--line:#38332d;--acc:#7fb4cf;--accink:#10202a}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.app{display:grid;grid-template-columns:320px minmax(0,1fr);gap:20px;max-width:1280px;margin:0 auto;padding:20px}
+@media (max-width:820px){.app{grid-template-columns:1fr}}
+h1{font-size:20px;margin:0 0 4px;letter-spacing:-.01em}
+.sub{color:var(--mute);margin:0 0 16px;font-size:13px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px}
+.row{margin:0 0 12px}
+.row label{display:flex;justify-content:space-between;font-size:13px;color:var(--mute);margin-bottom:4px}
+.row label b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--acc)}
+select,button{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:7px 10px;width:100%}
+button{cursor:pointer}
+button.primary{background:var(--acc);color:var(--accink);border-color:var(--acc);font-weight:600}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.colors{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.colors label{font-size:12px;color:var(--mute);display:block}
+.colors input{width:100%;height:34px;border:1px solid var(--line);border-radius:6px;padding:2px;background:var(--bg)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.stage{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.cv{background:repeating-conic-gradient(#8884 0 25%,#0000 0 50%) 0 0/16px 16px;border-radius:6px;overflow:hidden;line-height:0}
+canvas{width:100%;height:auto;display:block;max-height:78vh;object-fit:contain;margin:0 auto;aspect-ratio:1}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.bar>*{width:auto;flex:1 1 140px}
+.note{font-size:12px;color:var(--mute);min-height:18px}
+h2{font-size:13px;margin:16px 0 8px;color:var(--mute);font-weight:600}
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="panel">
+  <h1>Hair texture generator</h1>
+  <p class="sub">Strand-based 2D hair maps with a scalp fade, built for short cuts and fades.</p>
+  <div class="row"><label for="preset">Preset</label>
+    <select id="preset"></select></div>
+  <div class="colors">
+    <div><label for="cHair">Hair</label><input type="color" id="cHair" value="#2a1c12"></div>
+    <div><label for="cTip">Tips</label><input type="color" id="cTip" value="#7a6045"></div>
+    <div><label for="cScalp">Scalp</label><input type="color" id="cScalp" value="#4a3a2c"></div>
+  </div>
+  <div id="sliders"></div>
+  <div class="grid2">
+    <div><label class="note" for="flow">Flow</label>
+      <select id="flow"><option value="crown">Crown swirl</option><option value="angle">Straight (use angle)</option></select></div>
+    <div><label class="note" for="size">Resolution</label>
+      <select id="size"><option>512</option><option selected>1024</option><option>2048</option></select></div>
+  </div>
+  <div class="row"><button id="rand">New random seed</button></div>
+</aside>
+<main class="stage">
+  <div class="bar">
+    <select id="mode" aria-label="Output map">
+      <option value="color">Color map</option>
+      <option value="mask">Strand mask (white on black)</option>
+      <option value="rt">Root-to-tip map</option>
+    </select>
+    <label style="display:flex;gap:6px;align-items:center;font-size:13px;color:var(--mute)"><input type="checkbox" id="trans"> Transparent scalp</label>
+    <button class="primary" id="save">Save PNG</button>
+  </div>
+  <div class="cv"><canvas id="cv" width="1024" height="1024" aria-label="Generated hair texture"></canvas></div>
+  <div class="note" id="status"></div>
+</main>
+</div>
+<script>
+(function(){
+var S=[ // key,label,min,max,step
+['seed','Seed',1,9999,1],
+['count','Strands (thousands)',4,90,1],
+['len','Strand length',3,70,1],
+['thick','Thickness',0.4,3,0.1],
+['fadeStart','Fade starts at height',0,0.9,0.01],
+['fadeSoft','Fade softness',0.1,0.9,0.01],
+['angle','Flow angle (°)',0,360,1],
+['crownX','Crown X',0,1,0.01],
+['crownY','Crown Y',0,1,0.01],
+['curl','Curl / jitter',0,1.5,0.05],
+['vary','Color variation',0,1,0.05],
+['stubble','Scalp stubble',0,1,0.05]
+];
+var P={fade:{seed:12,count:48,len:26,thick:1.1,fadeStart:0.38,fadeSoft:0.5,angle:90,crownX:0.5,crownY:0.12,curl:0.35,vary:0.45,stubble:0.8,hair:'#2a1c12',tip:'#7a6045',scalp:'#4a3a2c',flow:'crown'},
+buzz:{seed:7,count:70,len:8,thick:0.9,fadeStart:0.6,fadeSoft:0.35,angle:90,crownX:0.5,crownY:0.1,curl:0.2,vary:0.35,stubble:1,hair:'#1c140e',tip:'#4a3828',scalp:'#4a3a2c',flow:'crown'},
+longs:{seed:21,count:40,len:62,thick:1.6,fadeStart:0.9,fadeSoft:0.1,angle:90,crownX:0.5,crownY:0,curl:0.25,vary:0.5,stubble:0,hair:'#3a2415',tip:'#8a6a48',scalp:'#2a1c12',flow:'angle'},
+blond:{seed:33,count:50,len:30,thick:1,fadeStart:0.4,fadeSoft:0.45,angle:90,crownX:0.5,crownY:0.12,curl:0.5,vary:0.6,stubble:0.7,hair:'#8c6a2e',tip:'#e6cf94',scalp:'#b08a68',flow:'crown'}};
+var names={fade:'Short fade (like the photo)',buzz:'Buzz cut',longs:'Long straight',blond:'Blond crop'};
+var $=function(i){return document.getElementById(i)};
+var cur=JSON.parse(JSON.stringify(P.fade));
+var sl=$('sliders'),ps=$('preset');
+for(var k in names){var o=document.createElement('option');o.value=k;o.textContent=names[k];ps.appendChild(o)}
+S.forEach(function(s){var d=document.createElement('div');d.className='row';
+ d.innerHTML='<label for="s_'+s[0]+'">'+s[1]+'<b id="v_'+s[0]+'"></b></label><input type="range" id="s_'+s[0]+'" min="'+s[2]+'" max="'+s[3]+'" step="'+s[4]+'">';
+ sl.appendChild(d);d.querySelector('input').addEventListener('input',function(e){cur[s[0]]=+e.target.value;sync(false);sched()})});
+function sync(setInputs){S.forEach(function(s){var el=$('s_'+s[0]);if(setInputs)el.value=cur[s[0]];$('v_'+s[0]).textContent=cur[s[0]]});
+ if(setInputs){$('cHair').value=cur.hair;$('cTip').value=cur.tip;$('cScalp').value=cur.scalp;$('flow').value=cur.flow}}
+function rng(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function rgb(h){var n=parseInt(h.slice(1),16);return[n>>16&255,n>>8&255,n&255]}
+function mix(a,b,t){return[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t]}
+function css(c,al){return'rgba('+(c[0]|0)+','+(c[1]|0)+','+(c[2]|0)+','+al+')'}
+function sm(x){x=Math.max(0,Math.min(1,x));return x*x*(3-2*x)}
+var cv=$('cv'),ctx=cv.getContext('2d');
+function draw(){
+ var W=+$('size').value;cv.width=W;cv.height=W;var u=W/1024,mode=$('mode').value,trans=$('trans').checked;
+ var R=rng(cur.seed),hair=rgb(cur.hair),tip=rgb(cur.tip),scalp=rgb(cur.scalp);
+ ctx.clearRect(0,0,W,W);
+ if(mode!=='color'){ctx.fillStyle='#000';ctx.fillRect(0,0,W,W)}
+ else if(!trans){ctx.fillStyle=css(scalp,1);ctx.fillRect(0,0,W,W);
+  var im=ctx.getImageData(0,0,W,W),d=im.data,r2=rng(cur.seed+5);
+  for(var i=0;i<d.length;i+=4){var n=(r2()-.5)*14;d[i]+=n;d[i+1]+=n;d[i+2]+=n}ctx.putImageData(im,0,0)}
+ ctx.lineCap='round';
+ var fadeAt=function(y){return sm((y/W-cur.fadeStart)/cur.fadeSoft)};
+ // stubble / follicle dots
+ if(cur.stubble>0){var nd=Math.floor(90000*cur.stubble*u*u),dc=mode==='color'?hair:[255,255,255];
+  for(var i=0;i<nd;i++){var x=R()*W,y=R()*W,f=fadeAt(y);if(R()>f*0.9+0.03)continue;
+   var rr=(0.5+R()*0.9)*u;ctx.fillStyle=css(mode==='color'?mix(scalp,hair,0.5+R()*0.5):dc,0.25+R()*0.45);
+   ctx.beginPath();ctx.arc(x,y,rr,0,6.283);ctx.fill()}}
+ var N=cur.count*1000*u*u,cx=cur.crownX*W,cy=cur.crownY*W,base=cur.angle*Math.PI/180,crown=$('flow').value==='crown';
+ var root=mode==='color'?mix(hair,[0,0,0],0.45):[0,0,0];
+ for(var i=0;i<N;i++){
+  var x=R()*W,y=R()*W,f=fadeAt(y);
+  if(R()<f*0.55){R();R();R();R();continue}
+  var a=crown?Math.atan2(y-cy,x-cx):base;
+  a+=(R()-.5)*cur.curl*1.2;
+  var L=(cur.len*(1-f)+1.5*f)*u*(0.65+R()*0.7),bend=(R()-.5)*cur.curl*L*0.6;
+  var th=cur.thick*u*(1-f*0.5)*(0.8+R()*0.5);
+  var c=Math.cos(a),s=Math.sin(a);
+  var mx=x+c*L*.5-s*bend,my=y+s*L*.5+c*bend,tx=x+c*L+s*bend*0.5,ty=y+s*L-c*bend*0.5;
+  var b=1+(R()-.5)*cur.vary*1.1,body,tc;
+  if(mode==='color'){body=mix(hair,tip,0.25*R());body=[body[0]*b,body[1]*b,body[2]*b];tc=mix(body,tip,0.55+R()*0.4*cur.vary+0.2)}
+  else if(mode==='mask'){body=[255,255,255];tc=body}
+  else{body=[110,110,110];tc=[255,255,255]}
+  ctx.lineWidth=th;
+  ctx.strokeStyle=css(mode==='rt'?[30,30,30]:(mode==='mask'?[255,255,255]:root),0.9);
+  ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(mx,my);ctx.stroke();
+  ctx.lineWidth=th*0.85;ctx.strokeStyle=css(mode==='rt'?body:body,0.92);
+  ctx.beginPath();ctx.moveTo(mx,my);ctx.lineTo(tx,ty);ctx.stroke();
+  if(mode!=='mask'){ctx.lineWidth=th*0.6;ctx.strokeStyle=css(tc,0.8);
+   ctx.beginPath();ctx.moveTo((mx+tx)/2,(my+ty)/2);ctx.lineTo(tx,ty);ctx.stroke()}
+ }
+}
+var q=0;function sched(){if(q)return;q=requestAnimationFrame(function(){q=0;draw()})}
+ps.addEventListener('change',function(){cur=JSON.parse(JSON.stringify(P[ps.value]));sync(true);sched()});
+$('cHair').addEventListener('input',function(e){cur.hair=e.target.value;sched()});
+$('cTip').addEventListener('input',function(e){cur.tip=e.target.value;sched()});
+$('cScalp').addEventListener('input',function(e){cur.scalp=e.target.value;sched()});
+['flow','size','mode','trans'].forEach(function(i){$(i).addEventListener('change',function(){cur.flow=$('flow').value;sched()})});
+$('rand').addEventListener('click',function(){cur.seed=1+Math.floor(Math.random()*9999);sync(true);sched()});
+$('save').addEventListener('click',async function(){
+ var st=$('status');st.textContent='';
+ var blob=await new Promise(function(r){cv.toBlob(r,'image/png')});
+ var dl=null;try{dl=window.claude&&await window.claude.use('downloads')}catch(e){}
+ if(!dl){st.textContent='Saving isn’t available in this view. Right-click the image and choose Save image as.';return}
+ try{await dl.save({filename:'hair-'+$('mode').value+'-'+cur.seed+'.png',data:blob});st.textContent='Saved.'}
+ catch(e){st.textContent=e&&e.code==='declined'?'Save cancelled.':'Couldn’t save the file.'}
+});
+sync(true);draw();
+})();
+</script>
+</body>
+</html>
