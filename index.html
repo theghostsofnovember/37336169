@@ -211,8 +211,17 @@ dicap:{count:120,len:0.6,fadeBand:1.1,nape:2.1,front:3.85,lift:0.15,curl:0.12,st
 cruise:{count:120,len:0.5,fadeBand:1.0,nape:2.15,front:3.9,lift:0.55,curl:0.25,stub:0.7,seed:27,h:'#2b1d12',t:'#5a4430',coil:0,freq:0,sweep:0.8},
 undercut:{count:120,len:0.95,fadeBand:0.3,nape:2.9,front:3.9,lift:0.3,curl:0.2,stub:0.6,seed:61,h:'#2a1b11',t:'#5e4630',sweep:1.4,wave:0.02},
 mohawk:{count:110,len:0.9,fadeBand:0.25,nape:2.1,front:3.85,lift:0.95,curl:0.25,stub:0.7,seed:71,h:'#1a1210',t:'#3a2a20',mohawk:0.32}};
-var PRN=[['base','Base shape (uncut)','الشكل الأساسي (غير مقصوص)'],['fade','Short fade (photo look)','تدريج قصير'],['buzz','Buzz cut','حلاقة قصيرة جداً'],['crop','Textured crop','قصة كروب'],['long','Long','طويل'],['ref','Dark wavy swept-up (photo)','مموّج داكن مرفوع'],['curly','Natural curly','مجعّد طبيعي'],['wavy','Wavy','مموّج'],['afro','Afro / coily','أفرو'],['dicap','Slick back (DiCaprio)','مسرّح للخلف'],['cruise','Side-swept (Tom Cruise)','مسرّح جانبي'],['undercut','Undercut','أندركت'],['mohawk','Mohawk','موهوك']];
-function setP(k){S.hair=cur=Object.assign({preset:k,coil:0,freq:0,sweep:0,wave:0.015,lock:0.18,bend:0.75,mohawk:0},JSON.parse(JSON.stringify(PR[k])))}
+(function(){var F={fade:['up',0.07,0.1],buzz:['crown',0.01,0],crop:['forward',0.05,0.04],base:['crown',0.06,0],long:['center',0.05,0.04],ref:['up',0.1,0.15],curly:['crown',0.18,0.05],wavy:['side',0.07,0.06],afro:['crown',0.3,0.05],dicap:['back',0.03,0.04],cruise:['side',0.08,0.12],undercut:['back',0.1,0.15],mohawk:['legacy',0,0]};
+ for(var k in F){PR[k].flow=F[k][0];PR[k].vol=F[k][1];PR[k].volF=F[k][2]}
+ Object.assign(PR,{
+ titanic:{flow:'center',part:0.45,count:130,len:0.95,fadeBand:0.25,nape:1.75,front:3.95,lift:0.3,curl:0.14,stub:0.15,seed:97,h:'#3d2a1a',t:'#8a6440',vol:0.06,volF:0.06,layer:0.7,wave:0.03,lock:0.32,clump:0.55},
+ topgun:{flow:'side',part:0.42,count:125,len:0.55,fadeBand:0.85,nape:2.1,front:3.9,lift:0.4,curl:0.12,stub:0.35,seed:33,h:'#21160e',t:'#3d2c1e',vol:0.09,volF:0.13,layer:0.5,wave:0.02,lock:0.22,clump:0.45},
+ kroos:{flow:'back',count:120,len:0.55,fadeBand:0.55,nape:2.75,front:3.92,lift:0.3,curl:0.04,stub:0.9,seed:8,h:'#6b5235',t:'#a88a60',vol:0.04,volF:0.1,layer:0.35,wave:0.01,lock:0.4,clump:0.6},
+ quiff:{flow:'up',count:120,len:0.72,fadeBand:0.9,nape:2.25,front:3.85,lift:0.5,curl:0.45,stub:0.9,seed:19,h:'#120c08',t:'#2a1e16',vol:0.11,volF:0.3,layer:0.5,wave:0.02,lock:0.42,clump:0.65},
+ pomp:{flow:'up',count:130,len:0.95,fadeBand:0.6,nape:2.15,front:3.85,lift:0.4,curl:0.06,stub:0.6,seed:44,h:'#1a120d',t:'#3a2a1e',vol:0.14,volF:0.42,layer:0.6,wave:0.015,lock:0.2,clump:0.5},
+ flowback:{flow:'back',count:130,len:1.0,fadeBand:0.35,nape:1.95,front:3.9,lift:0.35,curl:0.2,stub:0.3,seed:58,h:'#140e0a',t:'#30241b',vol:0.12,volF:0.24,layer:0.6,wave:0.035,lock:0.35,clump:0.55}})})();
+var PRN=[['titanic','Titanic curtains (DiCaprio ’97)','ستارة تايتانك (دي كابريو)'],['topgun','Top Gun side part (Tom Cruise)','فرق جانبي توب غن (توم كروز)'],['kroos','Slick back + high fade (Kroos)','للخلف مع تدريج عالٍ (كروس)'],['quiff','Textured quiff + low fade','كويف مموّج مع تدريج منخفض'],['pomp','Pompadour','بومبادور'],['flowback','Flow back','انسياب للخلف'],['base','Base shape (uncut)','الشكل الأساسي (غير مقصوص)'],['fade','Short fade (photo look)','تدريج قصير'],['buzz','Buzz cut','حلاقة قصيرة جداً'],['crop','Textured crop','قصة كروب'],['long','Long','طويل'],['ref','Dark wavy swept-up (photo)','مموّج داكن مرفوع'],['curly','Natural curly','مجعّد طبيعي'],['wavy','Wavy','مموّج'],['afro','Afro / coily','أفرو'],['dicap','Slick back (DiCaprio)','مسرّح للخلف'],['cruise','Side-swept (Tom Cruise)','مسرّح جانبي'],['undercut','Undercut','أندركت'],['mohawk','Mohawk','موهوك']];
+function setP(k){S.hair=cur=Object.assign({preset:k,coil:0,freq:0,sweep:0,wave:0.015,lock:0.18,bend:0.75,mohawk:0,flow:'crown',part:0.45,vol:0.05,volF:0,layer:0.5,clump:0.4},JSON.parse(JSON.stringify(PR[k])))}
 
 /* ================= renderer / scene ================= */
 var cv=$('c'),st=$('stage'),ren=new T.WebGLRenderer({canvas:cv,antialias:true,alpha:true,preserveDrawingBuffer:true});
@@ -249,14 +258,19 @@ function loopSub(pos,idx){
  for(f=0;f<nf;f++){var a0=idx[f*3],b0=idx[f*3+1],c0=idx[f*3+2],ab=nv+fe[f*3],bc=nv+fe[f*3+1],ca=nv+fe[f*3+2];nf2.set([a0,ab,ca,ab,b0,bc,ca,bc,c0,ab,bc,ca],f*12)}
  return{p:out,f:nf2}}
 
-var LEVEL=2,g=null,P,N,IX,NT,NV,REST,SD,NBO,NBI,LINER,RIMS={eyes:[],mouth:null},COMPS=[],SAMP_ALL,SAMP_BROW,SAMP_BEARD,skin=null,wire=null;
+var SHC,SHL,SHW2,VA,EARD,shortDirty=true,shortT=0,HLY=0,LEVEL=2,g=null,P,N,IX,NT,NV,REST,SD,NBO,NBI,LINER,RIMS={eyes:[],mouth:null},COMPS=[],SAMP_ALL,SAMP_BROW,SAMP_BEARD,skin=null,wire=null;
 function setupMesh(lv){LEVEL=lv;var pos=BASE.v,idx=BASE.f;for(var i=0;i<lv;i++){var r=loopSub(pos,idx);pos=r.p;idx=r.f}
  NV=pos.length/3;REST=new Float32Array(pos);IX=idx;NT=idx.length/3;
  var ng=new T.BufferGeometry();ng.setAttribute('position',new T.BufferAttribute(new Float32Array(pos),3));ng.setIndex(new T.BufferAttribute(idx,1));
  ng.setAttribute('aRest',new T.BufferAttribute(REST,3));ng.setAttribute('color',new T.BufferAttribute(new Float32Array(NV*3),3));ng.setAttribute('aRough',new T.BufferAttribute(new Float32Array(NV),1));
  ng.computeVertexNormals();ng.computeBoundingSphere();
  var old=g;g=ng;P=g.attributes.position;N=g.attributes.normal;if(skin){skin.geometry=g;wire.geometry=g}if(old)old.dispose();
- SD=new Float32Array(NV*3);
+ ng.setAttribute('aShort',new T.BufferAttribute(new Float32Array(NV*2),2));
+ SD=new Float32Array(NV*3);SHC=new Float32Array(NV);SHL=new Float32Array(NV);SHW2=new Float32Array(NV*2);VA=new Float32Array(NV);shortDirty=true;
+ for(var t0=0;t0<NT;t0++){var A0=IX[t0*3]*3,B0=IX[t0*3+1]*3,C0=IX[t0*3+2]*3,e1x=REST[B0]-REST[A0],e1y=REST[B0+1]-REST[A0+1],e1z=REST[B0+2]-REST[A0+2],e2x=REST[C0]-REST[A0],e2y=REST[C0+1]-REST[A0+1],e2z=REST[C0+2]-REST[A0+2],ar=Math.hypot(e1y*e2z-e1z*e2y,e1z*e2x-e1x*e2z,e1x*e2y-e1y*e2x)/6;VA[A0/3]+=ar;VA[B0/3]+=ar;VA[C0/3]+=ar}
+ // distance to the ear (protruding flap) so the hairline can trace its outline
+ EARD=new Float32Array(NV).fill(9);var EV=[];for(i=0;i<NV;i++){var ex0=Math.abs(REST[i*3]),ey0=REST[i*3+1],ez0=REST[i*3+2];if(ex0>1.26&&ey0>2.3&&ey0<3.2&&ez0>-1.05&&ez0<-0.35)EV.push(i)}
+ for(i=0;i<NV;i++){var qx=REST[i*3],qy=REST[i*3+1],qz=REST[i*3+2];if(qy<1.9||qy>3.7||qz>0.1||qz<-1.6)continue;var md=9;for(var e=0;e<EV.length;e++){var ev=EV[e]*3;if((REST[ev]>0)!==(qx>0))continue;var dd=Math.hypot(REST[ev]-qx,REST[ev+1]-qy,REST[ev+2]-qz);if(dd<md)md=dd}EARD[i]=md}
  // vertex adjacency (CSR) for the smooth brush
  var cnt=new Int32Array(NV+1),t,k;for(t=0;t<NT*3;t++)cnt[IX[t]+1]+=2;for(i=0;i<NV;i++)cnt[i+1]+=cnt[i];
  var fillp=cnt.slice(0,NV),nb=new Int32Array(cnt[NV]);for(t=0;t<NT;t++)for(k=0;k<3;k++){var a=IX[t*3+k],b=IX[t*3+(k+1)%3];nb[fillp[a]++]=b;nb[fillp[b]++]=a}
@@ -264,7 +278,7 @@ function setupMesh(lv){LEVEL=lv;var pos=BASE.v,idx=BASE.f;for(var i=0;i<lv;i++){
  SAMP_ALL=mkSampler(null);
  SAMP_BROW=mkSampler(function(x,y,z){return Math.abs(x)<1.05&&y>2.9&&y<3.55&&z>0.3});
  SAMP_BEARD=mkSampler(function(x,y,z){return y>0.75&&y<2.9&&z>-0.8&&Math.abs(x)<1.45});
- findRims();bakeMorphs();bakeLiner()}
+ findRims();bakeMorphs();bakeLiner();buildShell()}
 function mkSampler(fl){var L=[],C=[],t=0,a=new T.Vector3(),b=new T.Vector3(),c=new T.Vector3();
  for(var i=0;i<NT;i++){var ia=IX[i*3]*3,ib=IX[i*3+1]*3,ic=IX[i*3+2]*3;
   if(fl&&!fl((REST[ia]+REST[ib]+REST[ic])/3,(REST[ia+1]+REST[ib+1]+REST[ic+1])/3,(REST[ia+2]+REST[ib+2]+REST[ic+2])/3))continue;
@@ -315,10 +329,22 @@ function mkSkinTex(){var Sz=512,R=rng(77),n1=vn(Sz,8,R),n2=vn(Sz,32,R),n3=vn(Sz,
   var red=(n1(x,y)-0.5)*0.08+(n5(x,y)-0.5)*0.04,fn=(n3(x,y)-0.5)*0.08;di.data[i]=Math.min(255,(1+red+fn)*204);di.data[i+1]=Math.min(255,(1-red*0.8+fn)*204);di.data[i+2]=Math.min(255,(1-red*0.6+fn)*204);di.data[i+3]=255}
  hx.putImageData(hi,0,0);dx2.putImageData(di,0,0);
  function txr(c){var q=new T.CanvasTexture(c);q.wrapS=q.wrapT=T.RepeatWrapping;q.anisotropy=8;return q}return{h:txr(hc),d:txr(dc)}}
-var SKT=mkSkinTex(),SKU={bump:{value:0.6},oil:{value:0.5},sss:{value:0.7},trn:{value:0.8},age:{value:0},frk:{value:0.2}};
+// Tileable short-hair texture built with the Hair Texture Generator approach: R = short stubble strokes,
+// G = follicle dots, B = longer strokes (root-dense, lighter body). Painted on the scalp by cut length.
+function mkHairTex(){var W=512,R=rng(4242),out=document.createElement('canvas');out.width=out.height=W;var ox=out.getContext('2d'),od=ox.createImageData(W,W);
+ function layer(draw){var c=document.createElement('canvas');c.width=c.height=W;var x=c.getContext('2d');x.fillStyle='#000';x.fillRect(0,0,W,W);x.lineCap='round';draw(x);return x.getImageData(0,0,W,W).data}
+ function wrap(px,py,m,fn){for(var dx=-1;dx<=1;dx++)for(var dy=-1;dy<=1;dy++){var X=px+dx*W,Y=py+dy*W;if(X<-m||X>W+m||Y<-m||Y>W+m)continue;fn(X,Y)}}
+ var dots=layer(function(x){for(var i=0;i<9000;i++){var px=R()*W,py=R()*W,r=0.9+R()*1.1;x.fillStyle='rgba(255,255,255,'+(0.35+R()*0.55)+')';wrap(px,py,4,function(X,Y){x.beginPath();x.arc(X,Y,r,0,6.283);x.fill()})}});
+ function strokes(n,lmin,lmax,th){return layer(function(x){for(var i=0;i<n;i++){var px=R()*W,py=R()*W,a=Math.PI/2+(R()-.5)*0.9,L=lmin+R()*(lmax-lmin),bend=(R()-.5)*L*0.25,c=Math.cos(a),sn=Math.sin(a),w=th*(0.8+R()*0.5),body=0.55+R()*0.3;
+  var mx=c*L*.5-sn*bend,my=sn*L*.5+c*bend,tx=c*L+sn*bend*.5,ty=sn*L-c*bend*.5;
+  wrap(px,py,lmax+4,function(X,Y){x.lineWidth=w;x.strokeStyle='rgba(255,255,255,0.95)';x.beginPath();x.moveTo(X,Y);x.lineTo(X+mx,Y+my);x.stroke();x.lineWidth=w*0.75;x.strokeStyle='rgba(255,255,255,'+body+')';x.beginPath();x.moveTo(X+mx,Y+my);x.lineTo(X+tx,Y+ty);x.stroke()})}})}
+ var sh=strokes(7000,4,9,1.6),lg=strokes(3200,16,34,1.6);
+ for(var i=0;i<W*W*4;i+=4){od.data[i]=sh[i];od.data[i+1]=dots[i];od.data[i+2]=lg[i];od.data[i+3]=255}
+ ox.putImageData(od,0,0);var t=new T.CanvasTexture(out);t.wrapS=t.wrapT=T.RepeatWrapping;t.anisotropy=8;return t}
+var SKT=mkSkinTex(),SKU={bump:{value:0.6},oil:{value:0.5},sss:{value:0.7},trn:{value:0.8},age:{value:0},frk:{value:0.2},ht:{value:mkHairTex()},hA:{value:new T.Color()},hB:{value:new T.Color()},stub:{value:0.5}};
 var skinMat=new T.MeshPhysicalMaterial({vertexColors:true,roughness:0.58,metalness:0,clearcoat:0.14,clearcoatRoughness:0.4,side:T.DoubleSide,envMapIntensity:0.85});
-skinMat.onBeforeCompile=function(sh){sh.uniforms.uH={value:SKT.h};sh.uniforms.uD={value:SKT.d};sh.uniforms.uBump=SKU.bump;sh.uniforms.uOil=SKU.oil;sh.uniforms.uSSS=SKU.sss;sh.uniforms.uTrn=SKU.trn;sh.uniforms.uAge=SKU.age;sh.uniforms.uFrk=SKU.frk;
- sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nattribute vec3 aRest;attribute float aRough;varying vec3 vOP;varying vec3 vON;varying float vThin;varying float vRough;').replace('#include <begin_vertex>','#include <begin_vertex>\nvOP=aRest;vON=normal;vRough=aRough;float ea=smoothstep(0.95,1.35,abs(aRest.x))*step(2.2,aRest.y)*step(aRest.y,3.4);float nz=exp(-(aRest.x*aRest.x/0.12+(aRest.y-2.45)*(aRest.y-2.45)/0.15))*step(0.9,aRest.z);vThin=clamp(ea+nz*0.8,0.0,1.0);');
+skinMat.onBeforeCompile=function(sh){sh.uniforms.uH={value:SKT.h};sh.uniforms.uD={value:SKT.d};sh.uniforms.uBump=SKU.bump;sh.uniforms.uOil=SKU.oil;sh.uniforms.uSSS=SKU.sss;sh.uniforms.uTrn=SKU.trn;sh.uniforms.uAge=SKU.age;sh.uniforms.uFrk=SKU.frk;sh.uniforms.uHT=SKU.ht;sh.uniforms.uHairA=SKU.hA;sh.uniforms.uHairB=SKU.hB;sh.uniforms.uStub=SKU.stub;
+ sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nattribute vec3 aRest;attribute float aRough;attribute vec2 aShort;varying vec2 vShort;varying vec3 vOP;varying vec3 vON;varying float vThin;varying float vRough;').replace('#include <begin_vertex>','#include <begin_vertex>\nvOP=aRest;vON=normal;vRough=aRough;vShort=aShort;float ea=smoothstep(0.95,1.35,abs(aRest.x))*step(2.2,aRest.y)*step(aRest.y,3.4);float nz=exp(-(aRest.x*aRest.x/0.12+(aRest.y-2.45)*(aRest.y-2.45)/0.15))*step(0.9,aRest.z);vThin=clamp(ea+nz*0.8,0.0,1.0);');
  var DIRECT_OLD='reflectedLight.directDiffuse += ( 1.0 - clearcoatDHR ) * irradiance * BRDF_Diffuse_Lambert( material.diffuseColor );';
  var DIRECT_NEW=`{
   float nlS=dot(geometry.normal,directLight.direction);
@@ -341,7 +367,7 @@ skinMat.onBeforeCompile=function(sh){sh.uniforms.uH={value:SKT.h};sh.uniforms.uD
  var chunkS=T.ShaderChunk.lights_physical_pars_fragment;if(chunkS.indexOf(DIRECT_OLD)<0)console.warn('SSS anchor missing');chunkS=chunkS.replace(DIRECT_OLD,DIRECT_NEW);
  sh.fragmentShader=sh.fragmentShader.replace('#include <lights_physical_pars_fragment>',chunkS);
  sh.fragmentShader=sh.fragmentShader.replace('#include <common>',`#include <common>
-varying vec3 vOP;varying vec3 vON;varying float vThin;varying float vRough;uniform sampler2D uH;uniform sampler2D uD;uniform float uBump;uniform float uOil;uniform float uSSS;uniform float uTrn;uniform float uAge;uniform float uFrk;
+varying vec3 vOP;varying vec3 vON;varying float vThin;varying float vRough;uniform sampler2D uH;uniform sampler2D uD;uniform float uBump;uniform float uOil;uniform float uSSS;uniform float uTrn;uniform float uAge;uniform float uFrk;uniform sampler2D uHT;uniform vec3 uHairA;uniform vec3 uHairB;uniform float uStub;varying vec2 vShort;
 vec3 tpW(){vec3 w=pow(abs(normalize(vON)),vec3(4.0));return w/(w.x+w.y+w.z);}
 float tpH(){vec3 w=tpW();vec3 p=vOP*1.05;return texture2D(uH,p.zy).r*w.x+texture2D(uH,p.xz).r*w.y+texture2D(uH,p.xy).r*w.z;}
 float tpF(){vec3 w=tpW();vec3 p=vOP*0.7;return texture2D(uH,p.zy).g*w.x+texture2D(uH,p.xz).g*w.y+texture2D(uH,p.xy).g*w.z;}
@@ -353,11 +379,23 @@ float wrk(){if(uAge<=0.001)return 0.0;vec3 p=vOP;float ax=abs(p.x);
  return (fh*0.6+cf*0.3+nl*0.5)*uAge;}`)
  .replace('#include <color_fragment>',`#include <color_fragment>
 diffuseColor.rgb*=tpD()*1.25;
-{float fm=exp(-(vOP.x*vOP.x/0.9+(vOP.y-2.55)*(vOP.y-2.55)/0.22))*smoothstep(0.3,0.9,vOP.z);float fk=clamp(tpF()*uFrk*(0.25+0.9*fm)*1.6,0.0,1.0);diffuseColor.rgb*=mix(vec3(1.0),vec3(0.6,0.42,0.32),fk);diffuseColor.rgb*=1.0-wrk()*0.18;}`)
+{float fm=exp(-(vOP.x*vOP.x/0.9+(vOP.y-2.55)*(vOP.y-2.55)/0.22))*smoothstep(0.3,0.9,vOP.z);float fk=clamp(tpF()*uFrk*(0.25+0.9*fm)*1.6,0.0,1.0);diffuseColor.rgb*=mix(vec3(1.0),vec3(0.6,0.42,0.32),fk);diffuseColor.rgb*=1.0-wrk()*0.18;}
+float gHair=0.0;
+{vec3 w=tpW();vec3 p=vOP*1.7;vec3 h3=texture2D(uHT,p.zy).rgb*w.x+texture2D(uHT,p.xz).rgb*w.y+texture2D(uHT,p.xy).rgb*w.z;
+ float dn=clamp(vShort.y,0.0,1.0),ln=vShort.x;
+ float dots=h3.g*dn*(0.45+0.55*uStub);
+ float hs=max(h3.r*smoothstep(0.003,0.03,ln),h3.b*smoothstep(0.025,0.1,ln))*dn;
+ // soft tone = what the follicles average to at a distance; grows with length so fades grade smoothly
+ float tone=dn*(0.22*(0.5+0.5*uStub)+0.4*smoothstep(0.004,0.06,ln)+0.3*smoothstep(0.06,0.3,ln));
+ vec3 shadowC=uHairA*0.8+vec3(0.015,0.018,0.024);
+ diffuseColor.rgb=mix(diffuseColor.rgb,shadowC,clamp(tone,0.0,0.92));
+ diffuseColor.rgb=mix(diffuseColor.rgb,shadowC*0.8,clamp(dots*0.55,0.0,1.0));
+ diffuseColor.rgb=mix(diffuseColor.rgb,mix(uHairA,uHairB,0.3*h3.b),clamp(hs*0.9,0.0,1.0));
+ gHair=clamp(tone+dots*0.4+hs,0.0,1.0);}`)
  .replace('#include <roughnessmap_fragment>',`#include <roughnessmap_fragment>
 roughnessFactor+=(0.55-tpH())*0.3+uAge*0.06-vRough;
 float tzn=exp(-pow(vOP.x/0.9,2.0))*smoothstep(1.9,2.5,vOP.y)*smoothstep(-0.2,0.6,vOP.z)*smoothstep(4.2,3.6,vOP.y);
-roughnessFactor=clamp(roughnessFactor-tzn*uOil*0.3,0.1,1.0);`)
+roughnessFactor=clamp(roughnessFactor-tzn*uOil*0.3*(1.0-gHair),0.1,1.0);roughnessFactor=mix(roughnessFactor,0.85,gHair*0.8);`)
  .replace('#include <normal_fragment_maps>',`#include <normal_fragment_maps>
 {float hH=tpH()*uBump*0.008-wrk()*0.007;vec3 dpx=dFdx(-vViewPosition),dpy=dFdy(-vViewPosition);float dHx=dFdx(hH),dHy=dFdy(hH);vec3 rr1=cross(dpy,normal),rr2=cross(normal,dpx);float det=dot(dpx,rr1);vec3 gr=sign(det)*(dHx*rr1+dHy*rr2);normal=normalize(abs(det)*normal-gr);}`)
  .replace('#include <emissivemap_fragment>',`#include <emissivemap_fragment>
@@ -368,13 +406,37 @@ var wireMat=new T.MeshBasicMaterial({color:0x7fd0ff,wireframe:true,transparent:t
 
 /* ================= strand hair (instanced, GPU-evaluated) ================= */
 var HAIR_VS=`
-attribute float aT;attribute vec3 aRoot;attribute vec3 aDir;attribute vec3 aNrm;attribute vec4 aMisc;attribute float aVar;attribute vec4 aClump;
+attribute float aT;attribute vec3 aRoot;attribute vec3 aDir;attribute vec3 aNrm;attribute vec4 aMisc;attribute float aVar;attribute vec4 aClump;attribute vec3 aCC;
+uniform float uFlow;uniform vec3 uHC;uniform vec3 uHR;uniform sampler2D uShell;uniform float uVol;uniform float uVolF;uniform float uLayer;uniform float uGravF;uniform float uClumpA;uniform float uHide;
 uniform sampler2D uPh;uniform float uGW;uniform float uCurl;uniform float uSag;uniform float uPhys;uniform vec4 uClip;uniform float uCoil;uniform float uFreq;uniform float uWaveA;uniform float uWaveF;uniform float uLock;uniform float uBend;
 varying vec3 vT;varying vec3 vN;varying vec3 vV;varying float vP;varying float vVar;
+float shellR(vec3 u){vec2 uv=vec2(atan(u.x,u.z)*0.15915494+0.5,asin(clamp(u.y,-1.0,1.0))*0.31830989+0.5);return 0.6+texture2D(uShell,uv).r*1.2;}
+// Flow groom: the strand travels along a great circle of the head shell (ellipsoid space, radius from a
+// baked surface map) in its combed direction, lifts off by the volume profile, and leaves the head
+// where its path turns straight down, then hangs under gravity.
+vec3 flowP(float s,float L){
+ vec3 q=(aRoot-uHC)/uHR;float ql=length(q);vec3 u0=q/ql;
+ vec3 d=aDir/uHR;d-=u0*dot(d,u0);float dl=length(d);d=dl>1e-5?d/dl:normalize(cross(u0,vec3(1.0,0.0,0.0)));
+ float k=ql-shellR(u0);
+ float spd=max(0.2,length(uHR*d)*ql);
+ float th=3.14159265-atan(u0.y,d.y+1e-6);if(th>3.14159265)th=0.0;th=min(th,2.2);
+ float sw=min(s,th*spd);float a=sw/spd;
+ vec3 ua=u0*cos(a)+d*sin(a);
+ float rad=shellR(ua)+k*(1.0-smoothstep(0.0,0.6,a));
+ vec3 nW=normalize(ua/uHR);
+ float fr=smoothstep(0.1,0.9,u0.z)*smoothstep(-0.3,0.4,u0.y);
+ float h=0.004+(uVol+uVolF*fr)*smoothstep(0.0,0.2,s)*(0.7+0.6*fract(aVar*7.31))+uLayer*0.05*s;
+ vec3 p=uHC+uHR*ua*rad+nW*h;
+ float ex=s-sw;
+ if(ex>0.0){vec3 tw=normalize(uHR*(-u0*sin(th)+d*cos(th)));p+=tw*ex;p.y-=0.3*uGravF*ex*ex;}
+ return p;}
 vec3 hp(float t){
  float L=aMisc.x;
  vec3 tn=aDir-aNrm*dot(aDir,aNrm);float tnl=length(tn);tn=tnl>1e-3?tn/tnl:aDir;
- vec3 p=aRoot+(aDir*t+(tn-aDir)*(uBend*t*t))*L+vec3(aMisc.z,0.0,aMisc.w)*(uCurl*L*0.3*t*t)-vec3(0.0,uSag*L*L*t*t,0.0);
+ vec3 p;
+ if(uFlow>0.5)p=flowP(t*L,L);
+ else p=aRoot+(aDir*t+(tn-aDir)*(uBend*t*t))*L-vec3(0.0,uSag*L*L*t*t,0.0);
+ p+=vec3(aMisc.z,0.0,aMisc.w)*(uCurl*L*0.3*t*t)+aCC*(uClumpA*smoothstep(0.15,1.0,t)*smoothstep(0.05,0.4,L));
  if(uCoil>0.0){
   vec3 ax=aDir;vec3 cu=normalize(cross(ax,abs(ax.y)<0.9?vec3(0.0,1.0,0.0):vec3(1.0,0.0,0.0)));vec3 cw=cross(ax,cu);
   float ph0=aVar*40.0;float ph=ph0+t*L*uFreq*6.2831;float rd=uCoil*(0.7+0.6*fract(aVar*13.7));
@@ -383,21 +445,24 @@ vec3 hp(float t){
  {
   vec3 sd=normalize(cross(aDir,vec3(0.0,1.0,0.0))+vec3(1e-4,0.0,0.0));
   vec3 sd2=cross(aDir,sd);
+  // groomed hair: keep wave/lock offsets in the scalp's tangent plane so strands don't bristle outward
+  if(uFlow>0.5){sd=normalize(cross(aNrm,aDir)+vec3(1e-4,0.0,0.0));sd2=aNrm*0.2;}
   float wv=sin(t*L*uWaveF*6.2831+aClump.x)*uWaveA*aClump.w*smoothstep(0.0,0.2,t);
   p+=sd*wv+(sd*aClump.y+sd2*aClump.z)*(uLock*L*t*t);
-  if(fract(aVar*91.7)>0.95)p+=(sd*(aVar-1.0)+sd2*(fract(aVar*37.0)-0.5))*L*0.6*t*t;
+  if(fract(aVar*91.7)>0.95)p+=(sd*(aVar-1.0)+sd2*(fract(aVar*37.0)-0.5))*L*(uFlow>0.5?0.25:0.6)*t*t;
  }
  float gi=(aMisc.y+0.5)/uGW;
  vec3 o1=texture2D(uPh,vec2(gi,0.25)).xyz;vec3 o2=texture2D(uPh,vec2(gi,0.75)).xyz;
  vec3 d=L*(o1*(6.75*t*t*(1.0-t))+o2*(t*t*t))*smoothstep(0.04,0.4,L)*uPhys;
  float h=dot(p-aRoot,aNrm);float dn=dot(d,aNrm);
  float pin=smoothstep(0.0,0.15,t);
- if(h+dn<0.012)d+=aNrm*(0.012-(h+dn))*pin;
- p+=d;
+ if(uFlow>0.5){vec3 pp=p+d;vec3 qq=(pp-uHC)/uHR;float ll=length(qq);vec3 uu=qq/ll;float sr=shellR(uu)+0.003;if(ll<sr)pp=mix(pp,uHC+uHR*uu*sr,smoothstep(0.02,0.12,t));p=pp;}
+ else{if(h+dn<0.012)d+=aNrm*(0.012-(h+dn))*pin;p+=d;}
  if(uClip.w>0.0){vec3 dd=p-uClip.xyz;float l=length(dd);if(l<uClip.w){p+=dd/(l+1e-4)*(uClip.w-l)*0.4*pin*smoothstep(0.05,0.25,L);}}
  return p;
 }
 void main(){
+ if(aMisc.x<uHide){gl_Position=vec4(2.0,2.0,2.0,1.0);vT=vec3(0.0,1.0,0.0);vN=vT;vV=vT;vP=0.0;vVar=1.0;return;}
  vec3 p0=hp(aT);
  bool nt=aT<0.98;
  vec3 p1=hp(nt?aT+0.02:aT-0.02);
@@ -440,19 +505,44 @@ void main(){
  #include <encodings_fragment>
 }`;
 var LU={uL1:{value:new T.Vector3(0,0,1)},uL2:{value:new T.Vector3(0,0,1)},uC1:{value:new T.Vector3(1.25,1.18,1.08)},uC2:{value:new T.Vector3(0.22,0.28,0.38)},uAmb:{value:new T.Vector3(0.42,0.4,0.38)}};
+var SHW=128,SHH=64,SHD=new Uint8Array(SHW*SHH),SHF=new Float32Array(SHW*SHH),SHT=new Float32Array(SHW*SHH);
+var shellTex=new T.DataTexture(SHD,SHW,SHH,T.LuminanceFormat,T.UnsignedByteType);shellTex.wrapS=T.RepeatWrapping;shellTex.wrapT=T.ClampToEdgeWrapping;shellTex.magFilter=shellTex.minFilter=T.LinearFilter;shellTex.generateMipmaps=false;
+var HC=new T.Vector3(0,3.15,-0.35),HR=new T.Vector3(1.38,1.5,1.5);
+// equirect map (ellipsoid space) of the outermost head surface; groomed strands ride on it
+function buildShell(){var m=SHF,pa=P.array,i,x,y,dx,dy;m.fill(0);
+ for(i=0;i<NV;i++){var py0=pa[i*3+1];if(py0<1.6)continue;var qx=(pa[i*3]-HC.x)/HR.x,qy=(py0-HC.y)/HR.y,qz=(pa[i*3+2]-HC.z)/HR.z,l=Math.sqrt(qx*qx+qy*qy+qz*qz);if(l<1e-4)continue;
+  var bx=Math.floor((Math.atan2(qx,qz)/6.2831853+0.5)*SHW)%SHW,by=Math.min(SHH-1,Math.floor((Math.asin(clamp(qy/l,-1,1))/Math.PI+0.5)*SHH)),b=by*SHW+bx;if(l>m[b])m[b]=l}
+ for(var it=0;it<16;it++){var any=false;SHT.set(m);for(y=0;y<SHH;y++)for(x=0;x<SHW;x++){var b2=y*SHW+x;if(SHT[b2])continue;var sum=0,c=0;for(dy=-1;dy<=1;dy++)for(dx=-1;dx<=1;dx++){var yy=y+dy;if(yy<0||yy>=SHH)continue;var v=SHT[yy*SHW+(x+dx+SHW)%SHW];if(v){sum+=v;c++}}if(c){m[b2]=sum/c;any=true}}if(!any)break}
+ for(i=0;i<m.length;i++)if(!m[i])m[i]=1;
+ for(var pass=0;pass<2;pass++){SHT.set(m);for(y=0;y<SHH;y++)for(x=0;x<SHW;x++){var mx=0,av=0,cn=0;for(dy=-1;dy<=1;dy++)for(dx=-1;dx<=1;dx++){var y2=clamp(y+dy,0,SHH-1),w=SHT[y2*SHW+(x+dx+SHW)%SHW];if(w>mx)mx=w;av+=w;cn++}m[y*SHW+x]=pass?av/cn:mx}}
+ for(i=0;i<m.length;i++)SHD[i]=clamp(Math.round((m[i]-0.6)/1.2*255),0,255);shellTex.needsUpdate=true}
+function shellJS(ux,uy,uz){var fu=(Math.atan2(ux,uz)/6.2831853+0.5)*SHW-0.5,fv=(Math.asin(clamp(uy,-1,1))/Math.PI+0.5)*SHH-0.5,x0=Math.floor(fu),y0=Math.floor(fv),ax=fu-x0,ay=fv-y0;
+ function G(x,y){x=((x%SHW)+SHW)%SHW;y=clamp(y,0,SHH-1);return SHD[y*SHW+x]}return 0.6+((G(x0,y0)*(1-ax)+G(x0+1,y0)*ax)*(1-ay)+(G(x0,y0+1)*(1-ax)+G(x0+1,y0+1)*ax)*ay)/255*1.2}
+// CPU mirror of flowP() for exports
+function flowJS(H,U,i,s,out){var j=i*3,q=new T.Vector3(H.RT[j],H.RT[j+1],H.RT[j+2]).sub(HC).divide(HR),ql=q.length(),u0=q.divideScalar(ql),d=new T.Vector3(H.DIR[j],H.DIR[j+1],H.DIR[j+2]).divide(HR);
+ d.addScaledVector(u0,-d.dot(u0));if(d.length()>1e-5)d.normalize();else d.crossVectors(u0,new T.Vector3(1,0,0)).normalize();
+ var k=ql-shellJS(u0.x,u0.y,u0.z),spd=Math.max(0.2,d.clone().multiply(HR).length()*ql),th=Math.PI-Math.atan2(u0.y,d.y+1e-6);if(th>Math.PI)th=0;th=Math.min(th,2.2);
+ var sw=Math.min(s,th*spd),a=sw/spd,ua=u0.clone().multiplyScalar(Math.cos(a)).addScaledVector(d,Math.sin(a)),rad=shellJS(ua.x,ua.y,ua.z)+k*(1-sm(a/0.6)),nW=ua.clone().divide(HR).normalize();
+ var fr=sm((u0.z-0.1)/0.8)*sm((u0.y+0.3)/0.7),h=0.004+(U.uVol.value+U.uVolF.value*fr)*sm(s/0.2)*(0.7+0.6*((H.VAR[i]*7.31)%1))+U.uLayer.value*0.05*s;
+ var p=ua.multiply(HR).multiplyScalar(rad).add(HC).addScaledVector(nW,h),ex=s-sw;
+ if(ex>0){var tw=u0.clone().multiplyScalar(-Math.sin(th)).addScaledVector(d,Math.cos(th)).multiply(HR).normalize();p.addScaledVector(tw,ex);p.y-=0.3*U.uGravF.value*ex*ex}
+ out[0]=p.x;out[1]=p.y;out[2]=p.z}
 var DUMMY=new T.DataTexture(new Float32Array(8),1,2,T.RGBAFormat,T.FloatType);DUMMY.needsUpdate=true;
 var CLIPU={value:new T.Vector4(0,0,0,0)};
-function mkLayer(n,o){var U={uPh:{value:DUMMY},uGW:{value:1},uCurl:{value:0.3},uSag:{value:0.3},uPhys:{value:0},uCoil:{value:0},uFreq:{value:0},uWaveA:{value:0.015},uBend:{value:0.75},uWaveF:{value:2.5},uLock:{value:0.18},uClip:o.clip?CLIPU:{value:new T.Vector4()},uHair:{value:new T.Color()},uTip:{value:new T.Color()},uShine:{value:1},uGloss:{value:1},uTrans:{value:1},uGrey:{value:0},uGreyC:{value:new T.Color(0.74,0.73,0.71)}};
+function mkLayer(n,o){var U={uPh:{value:DUMMY},uGW:{value:1},uCurl:{value:0.3},uSag:{value:0.3},uPhys:{value:0},uCoil:{value:0},uFreq:{value:0},uWaveA:{value:0.015},uBend:{value:0.75},uWaveF:{value:2.5},uLock:{value:0.18},uClip:o.clip?CLIPU:{value:new T.Vector4()},uHair:{value:new T.Color()},uTip:{value:new T.Color()},uShine:{value:1},uGloss:{value:1},uTrans:{value:1},uGrey:{value:0},uGreyC:{value:new T.Color(0.74,0.73,0.71)},uFlow:{value:0},uHC:{value:HC},uHR:{value:HR},uShell:{value:shellTex},uVol:{value:0},uVolF:{value:0},uLayer:{value:0},uGravF:{value:1},uClumpA:{value:0},uHide:{value:o.cut?0.03:0}};
  for(var k in LU)U[k]=LU[k];return{n:n,U:U,mat:new T.ShaderMaterial({uniforms:U,vertexShader:HAIR_VS,fragmentShader:HAIR_FS}),H:{n:0},obj:null,st:null,cut:!!o.cut,off:o.off,dirty:false}}
 var LY={scalp:mkLayer('scalp',{clip:true,cut:true,off:0.015}),brow:mkLayer('brow',{off:0.004}),beard:mkLayer('beard',{clip:true,cut:true,off:0.006}),lash:mkLayer('lash',{off:0})};
 var HU=LY.scalp.U;HU.sag0=0.3;
-function newH(n){return{n:0,RT:new Float32Array(n*3),NRM:new Float32Array(n*3),DIR:new Float32Array(n*3),L0:new Float32Array(n),CAP:new Float32Array(n).fill(9),MISC:new Float32Array(n*4),VAR:new Float32Array(n),CL:new Float32Array(n*4),TI:new Int32Array(n),BU:new Float32Array(n),BV:new Float32Array(n)}}
+function newH(n){return{n:0,RT:new Float32Array(n*3),NRM:new Float32Array(n*3),DIR:new Float32Array(n*3),L0:new Float32Array(n),CAP:new Float32Array(n).fill(9),MISC:new Float32Array(n*4),VAR:new Float32Array(n),CL:new Float32Array(n*4),TI:new Int32Array(n),BU:new Float32Array(n),BV:new Float32Array(n),CC:new Float32Array(n*3)}}
 function addStrand(H,k,s,dir,L,R,off){var j=k*3;H.TI[k]=s.ti;H.BU[k]=s.u;H.BV[k]=s.v;
  H.RT[j]=s.p.x-s.n.x*off;H.RT[j+1]=s.p.y-s.n.y*off;H.RT[j+2]=s.p.z-s.n.z*off;H.NRM[j]=s.n.x;H.NRM[j+1]=s.n.y;H.NRM[j+2]=s.n.z;H.DIR[j]=dir.x;H.DIR[j+1]=dir.y;H.DIR[j+2]=dir.z;
  H.L0[k]=L;H.MISC[k*4]=L;H.MISC[k*4+2]=R()-.5;H.MISC[k*4+3]=R()-.5;H.VAR[k]=0.6+R()*0.75;
  var hx=Math.floor(s.x/0.1),hy=Math.floor(s.y/0.1),hz=Math.floor(s.z/0.1),hs=(Math.imul(hx,73856093)^Math.imul(hy,19349663)^Math.imul(hz,83492791))>>>0;hs=Math.imul(hs^(hs>>>13),1274126177)>>>0;
  H.CL[k*4]=(hs%1000)/1000*6.283;H.CL[k*4+1]=((hs>>>10)%1000)/1000-0.5;H.CL[k*4+2]=((hs>>>20)%1000)/1000-0.5;H.CL[k*4+3]=0.5+((hs>>>5)%1000)/1000}
 function finalize(L,k,segs){var H=L.H;H.n=k;H.segs=segs;var bg=new T.InstancedBufferGeometry();
+ var CSz=0.07,cm=new Map(),acc=[],key=new Float64Array(k),i0;for(i0=0;i0<k;i0++){var j0=i0*3,kk=((Math.floor(H.RT[j0]/CSz)+512)*1024+Math.floor(H.RT[j0+1]/CSz)+512)*1024+Math.floor(H.RT[j0+2]/CSz)+512,ci=cm.get(kk);
+  if(ci===undefined){ci=acc.length/4;cm.set(kk,ci);acc.push(0,0,0,0)}acc[ci*4]+=H.RT[j0];acc[ci*4+1]+=H.RT[j0+1];acc[ci*4+2]+=H.RT[j0+2];acc[ci*4+3]++;key[i0]=ci}
+ for(i0=0;i0<k;i0++){var c0=key[i0]*4,n0=acc[c0+3];for(var e0=0;e0<3;e0++)H.CC[i0*3+e0]=acc[c0+e0]/n0-H.RT[i0*3+e0]}
  bg.setAttribute('position',new T.BufferAttribute(new Float32Array(3*64),3));
  var tA=new Float32Array(segs+1),ix=[],i;for(i=0;i<=segs;i++)tA[i]=i/segs;for(i=0;i<segs;i++)ix.push(i,i+1);
  bg.setAttribute('aT',new T.BufferAttribute(tA,1));bg.setIndex(ix);
@@ -460,11 +550,19 @@ function finalize(L,k,segs){var H=L.H;H.n=k;H.segs=segs;var bg=new T.InstancedBu
  bg.setAttribute('aDir',new T.InstancedBufferAttribute(H.DIR,3));
  bg.setAttribute('aNrm',new T.InstancedBufferAttribute(H.NRM,3).setUsage(T.DynamicDrawUsage));
  bg.setAttribute('aMisc',new T.InstancedBufferAttribute(H.MISC,4).setUsage(T.DynamicDrawUsage));
- bg.setAttribute('aVar',new T.InstancedBufferAttribute(H.VAR,1));bg.setAttribute('aClump',new T.InstancedBufferAttribute(H.CL,4));
+ bg.setAttribute('aVar',new T.InstancedBufferAttribute(H.VAR,1));bg.setAttribute('aCC',new T.InstancedBufferAttribute(H.CC,3));bg.setAttribute('aClump',new T.InstancedBufferAttribute(H.CL,4));
  bg.instanceCount=k;L.obj=new T.LineSegments(bg,L.mat);L.obj.frustumCulled=false;L.obj.visible=S.view.hair;scene.add(L.obj)}
 function mkStub(L,list){var n=list.length/4;if(!n)return;var sg=new T.BufferGeometry();sg.setAttribute('position',new T.BufferAttribute(new Float32Array(n*3),3).setUsage(T.DynamicDrawUsage));sg.setAttribute('color',new T.BufferAttribute(new Float32Array(n*3),3));
  L.st={n:n,d:Float32Array.from(list),obj:new T.Points(sg,new T.PointsMaterial({size:1.6,sizeAttenuation:false,vertexColors:true}))};L.st.obj.frustumCulled=false;L.st.obj.visible=S.view.hair;scene.add(L.st.obj);rebindStub(L)}
-function disposeL(L){if(L.obj){scene.remove(L.obj);L.obj.geometry.dispose();L.obj=null}if(L.st){scene.remove(L.st.obj);L.st.obj.geometry.dispose();L.st.obj.material.dispose();L.st=null}L.H={n:0}}
+function updShort(){shortDirty=false;var cnt=SHC,sl=SHL,i,q;cnt.fill(0);sl.fill(0);
+ [LY.scalp,LY.beard].forEach(function(L){var H=L.H;for(var i=0;i<H.n;i++){var t=H.TI[i]*3,u=H.BU[i],v=H.BV[i],w=1-u-v,len=Math.min(H.L0[i],H.CAP[i]),ia=IX[t],ib=IX[t+1],ic=IX[t+2];cnt[ia]+=w;cnt[ib]+=u;cnt[ic]+=v;sl[ia]+=w*len;sl[ib]+=u*len;sl[ic]+=v*len}});
+ var nz=[];for(i=0;i<NV;i++)if(cnt[i]>0)nz.push(cnt[i]/VA[i]);if(!nz.length){g.attributes.aShort.array.fill(0);g.attributes.aShort.needsUpdate=true;return}
+ nz.sort(function(a,b){return a-b});var ref=nz[Math.floor(nz.length*0.7)]||1,W2=SHW2;
+ for(i=0;i<NV;i++){W2[i*2]=cnt[i]>0?sl[i]/cnt[i]:0;W2[i*2+1]=Math.min(1,cnt[i]/VA[i]/ref)}
+ var out=g.attributes.aShort.array;for(var pass=0;pass<2;pass++){for(i=0;i<NV;i++){var dS=0,lS=0,lW=0,c=NBO[i+1]-NBO[i];for(q=NBO[i];q<NBO[i+1];q++){var m=NBI[q]*2;dS+=W2[m+1];lS+=W2[m]*W2[m+1];lW+=W2[m+1]}
+  var d=c?0.5*W2[i*2+1]+0.5*dS/c:W2[i*2+1],tw=W2[i*2+1]+lW;out[i*2]=tw>0?(W2[i*2]*W2[i*2+1]+lS)/tw:0;out[i*2+1]=d}if(!pass)W2.set(out)}
+ g.attributes.aShort.needsUpdate=true}
+function disposeL(L){shortDirty=true;if(L.obj){scene.remove(L.obj);L.obj.geometry.dispose();L.obj=null}if(L.st){scene.remove(L.st.obj);L.st.obj.geometry.dispose();L.st.obj.material.dispose();L.st=null}L.H={n:0}}
 function rebind(L){var H=L.H;if(H.n&&L.obj){var pa=P.array,na=N.array,off=L.off;
  for(var i=0;i<H.n;i++){var t=H.TI[i]*3,u=H.BU[i],v=H.BV[i],w=1-u-v,ia=IX[t]*3,ib=IX[t+1]*3,ic=IX[t+2]*3,j=i*3;
   var nx=na[ia]*w+na[ib]*u+na[ic]*v,ny=na[ia+1]*w+na[ib+1]*u+na[ic+1]*v,nz=na[ia+2]*w+na[ib+2]*u+na[ic+2]*v,nl=Math.sqrt(nx*nx+ny*ny+nz*nz)||1;nx/=nl;ny/=nl;nz/=nl;
@@ -480,15 +578,31 @@ function stubColor(L,c){if(!L.st)return;var a=L.st.obj.geometry.attributes.color
 var PH={G:0,tex:null,data:null,o:null,v:null,tmp:null,gx:null,gy:null,gz:null,gl:null,nb:null,cf:null,on:true,asleep:false,k:150,damp:0.3,grav:1,wind:0,shake:0,ms:0,fr:0};
 function yLow(x,y,z){var w=sm((z+0.35)/0.55);return cur.nape+(cur.front-cur.nape)*w}
 function earD(x,y,z){var dx=Math.abs(x)-1.41,dy=y-2.75,dz=z+0.75;return Math.sqrt(dx*dx+dy*dy+dz*dz)}
+// combing direction per root (rest-pose coords decide the region; tg = direction away from the crown)
+function flowDir(c,s,tg,D){var x=s.x,y=s.y,z=s.z,f=c.flow,pt=c.part===undefined?0.45:c.part,front=sm((z-0.1)/0.7);
+ if(f==='crown')D.copy(tg).addScaledVector(new T.Vector3().crossVectors(s.n,tg),0.25);
+ else if(f==='forward')D.set(x*0.3,-0.25,1);
+ else if(f==='back')D.set(x*0.25,0.1,-1);
+ else if(f==='side'){if(x<pt)D.set(-1,0.1,-0.45);else D.set(1,-0.8,-0.3)}
+ else if(f==='center'){var sg=x>=pt-0.45?1:-1;D.set(sg,-0.35,0.25+0.5*front)}
+ else{D.set(x*0.2,1,-0.35);var sd=sm((Math.abs(x)-0.6)/0.3);D.lerp(new T.Vector3(x*0.1,0.2,-1),sd)}
+ if(f!=='crown'){var w=sm((-z-0.3)/0.7)*sm((3.95-y)/0.5);D.lerp(new T.Vector3(x*0.3,-1,-0.3),w)}
+ return D}
+function edAt(sp){var t=sp.ti*3,w=1-sp.u-sp.v;return EARD[IX[t]]*w+EARD[IX[t+1]]*sp.u+EARD[IX[t+2]]*sp.v}
+function hairW(x,y,z,ed){if(y<1.95)return 0;var yl=yLow(x,y,z),sz=sm((Math.abs(x)-0.8)/0.25);
+ if(sz>0){var ye=z>-0.45?2.45+0.35*sm((-0.3-z)/0.15):z>-1.0?2.8:2.8+(cur.nape-2.8)*sm((-1.0-z)/0.3);yl+=(Math.max(yl,ye)-yl)*sz}
+ HLY=yl;return sm((y-yl+0.06)/0.12)*sm((ed-0.03)/0.05)}
 function buildScalp(){var L=LY.scalp;disposeL(L);var c=cur,R=rng(c.seed),n=Math.round(c.count*1000),H=L.H=newH(n),k=0,tries=0,U=L.U;
  HU.sag0=0.35/(0.2+c.len)*(1-c.lift*0.6);U.uSag.value=HU.sag0*PH.grav*1.8;U.uCurl.value=c.curl;U.uCoil.value=c.coil||0;U.uFreq.value=c.freq||0;U.uWaveA.value=c.wave||0;U.uLock.value=c.lock||0;U.uBend.value=c.bend;
+ var flow=c.flow||'legacy',FL=flow!=='legacy';U.uFlow.value=FL?1:0;U.uVol.value=c.vol||0;U.uVolF.value=c.volF||0;U.uLayer.value=c.layer===undefined?0.5:c.layer;U.uGravF.value=PH.grav;U.uClumpA.value=(c.clump===undefined?0.4:c.clump)*0.9;
  var stub=[],crown=new T.Vector3(0,4.5,-0.9),tg=new T.Vector3(),dir=new T.Vector3(),CS=0.24,gm=new Map(),GK=[],GX=[],GY=[],GZ=[],GL=[],GN=[];
- while(k<n&&tries<n*4){tries++;var s=sample(SAMP_ALL,R),yl=yLow(s.x,s.y,s.z);if(s.y<yl||s.y<1.95)continue;if(earD(s.x,s.y,s.z)<0.62)continue;
+ while(k<n&&tries<n*4){tries++;var s=sample(SAMP_ALL,R),hw=hairW(s.x,s.y,s.z,edAt(s)),yl=HLY;if(R()>=hw)continue;
   var f=1-sm((s.y-yl)/c.fadeBand);if(c.mohawk>0)f=Math.max(f,sm((Math.abs(s.x)-c.mohawk)/0.12));if(R()<f*0.6)continue;
   tg.copy(s.p).sub(crown);tg.addScaledVector(s.n,-tg.dot(s.n));if(tg.lengthSq()<1e-6)tg.set(0,-1,0);tg.normalize();
   var Ln=(c.len*(1-f)+0.025*f)*(0.7+R()*0.6);
-  dir.copy(s.n).multiplyScalar(c.lift).addScaledVector(tg,1-c.lift);var wf=c.sweep?sm((s.z+0.6)/1.2):0;dir.y+=0.25*c.sweep*wf;dir.z-=c.sweep*wf;
-  dir.x+=(R()-.5)*c.curl;dir.y+=(R()-.5)*c.curl;dir.z+=(R()-.5)*c.curl;dir.normalize();
+  if(FL){flowDir(c,s,tg,dir);dir.x+=(R()-.5)*c.curl*0.5;dir.y+=(R()-.5)*c.curl*0.5;dir.z+=(R()-.5)*c.curl*0.5;dir.addScaledVector(s.n,-dir.dot(s.n)).normalize()}
+  else{dir.copy(s.n).multiplyScalar(c.lift).addScaledVector(tg,1-c.lift);var wf=c.sweep?sm((s.z+0.6)/1.2):0;dir.y+=0.25*c.sweep*wf;dir.z-=c.sweep*wf;
+  dir.x+=(R()-.5)*c.curl;dir.y+=(R()-.5)*c.curl;dir.z+=(R()-.5)*c.curl;dir.normalize()}
   addStrand(H,k,s,dir,Ln,R,L.off);
   var ck=((Math.floor(s.x/CS)+64)<<14)|((Math.floor(s.y/CS)+64)<<7)|(Math.floor(s.z/CS)+64),gi=gm.get(ck);
   if(gi===undefined){gi=GK.length;gm.set(ck,gi);GK.push(ck);GX.push(0);GY.push(0);GZ.push(0);GL.push(0);GN.push(0)}
@@ -502,9 +616,8 @@ function buildScalp(){var L=LY.scalp;disposeL(L);var c=cur,R=rng(c.seed),n=Math.
   for(var ddx=-1;ddx<=1;ddx++)for(var ddy=-1;ddy<=1;ddy++)for(var ddz=-1;ddz<=1;ddz++){if(!ddx&&!ddy&&!ddz)continue;var ng=gm.get(((cx+ddx)<<14)|((cy+ddy)<<7)|(cz+ddz));if(ng!==undefined)PH.nb[g2*26+q2++]=ng}}
  if(PH.tex)PH.tex.dispose();PH.data=new Float32Array(G*2*4);PH.tex=new T.DataTexture(PH.data,G,2,T.RGBAFormat,T.FloatType);
  PH.tex.minFilter=PH.tex.magFilter=T.NearestFilter;PH.tex.generateMipmaps=false;PH.tex.needsUpdate=true;U.uPh.value=PH.tex;U.uGW.value=G;PH.asleep=true;
- var segs=c.freq>0?Math.min(24,Math.max(6,Math.ceil(c.freq*c.len*6))):4;finalize(L,k,segs);
- var extra=Math.floor(c.stub*60000);for(var j2=0;j2<extra;j2++){var s2=sample(SAMP_ALL,R),yl2=yLow(s2.x,s2.y,s2.z);if(s2.y<1.95||s2.y<yl2-0.12||earD(s2.x,s2.y,s2.z)<0.6)continue;var ff=1-sm((s2.y-yl2+0.35)/(c.fadeBand+0.35));if(R()>ff)continue;stub.push(s2.ti,s2.u,s2.v,0.4+R()*0.5)}
- mkStub(L,stub);trimmed=0;updHairCols();updHairMat()}
+ var segs=c.freq>0?Math.min(24,Math.max(FL?8:6,Math.ceil(c.freq*c.len*6))):FL?clamp(Math.ceil(c.len*10)+4,6,16):4;finalize(L,k,segs);
+ trimmed=0;updHairCols();updHairMat()}
 
 /* ---------- eyebrows, beard, lashes ---------- */
 function browW(x,y,z){var ax=Math.abs(x);if(z<0.45)return 0;var t=(ax-0.1)/0.82;if(t<0||t>1)return 0;
@@ -544,7 +657,7 @@ function updHairCols(){var h=col(cur.h),t=col(cur.t),gr=greyAmt();LY.scalp.U.uHa
  var bc=S.brow.link?h.clone().multiplyScalar(0.8):col(S.brow.c);LY.brow.U.uHair.value.copy(bc);LY.brow.U.uTip.value.copy(S.brow.link?bc.clone().lerp(t,0.25):bc);
  var dc=beardCol();LY.beard.U.uHair.value.copy(dc);LY.beard.U.uTip.value.copy(S.beard.link?t:dc.clone().multiplyScalar(1.3));
  var lc=col(S.lash.c);LY.lash.U.uHair.value.copy(lc);LY.lash.U.uTip.value.copy(lc);
- LY.scalp.U.uGrey.value=gr;LY.beard.U.uGrey.value=gr;LY.brow.U.uGrey.value=gr*0.7;stubColor(LY.scalp,h);stubColor(LY.beard,dc)}
+ LY.scalp.U.uGrey.value=gr;LY.beard.U.uGrey.value=gr;LY.brow.U.uGrey.value=gr*0.7;stubColor(LY.scalp,h);SKU.hA.value.copy(h).multiplyScalar(0.85);SKU.hB.value.copy(t);SKU.stub.value=cur.stub;stubColor(LY.beard,dc)}
 function updHairMat(){var m=S.hmat;['scalp','brow','beard','lash'].forEach(function(n){var U=LY[n].U,k=n==='lash'?0.5:1;U.uShine.value=m.shine*k;U.uGloss.value=m.gloss;U.uTrans.value=m.trans})}
 function setHairVis(){var v=S.view.hair;for(var n in LY){if(LY[n].obj)LY[n].obj.visible=v;if(LY[n].st)LY[n].st.obj.visible=v}}
 var pend={},pendQ=0;function sched(n){pend[n]=1;if(pendQ)return;pendQ=requestAnimationFrame(function(){pendQ=0;var p=pend;pend={};if(p.scalp)buildScalp();if(p.brow)buildBrow();if(p.beard)buildBeard();if(p.lash)buildLash();stats0()})}
@@ -589,7 +702,7 @@ function applyDeform(){defDirty=false;var pa=P.array,ex=animExpr||S.expr,q,k;pa.
  for(q=0;q<COMPS.length;q++){var C=COMPS[q],v=C.src==='shape'?S.shape[C.id]:C.src==='expr'?ex[C.id]:S.skin.age;if(!v)continue;var I=C.idx,Dd=C.d;
   for(k=0;k<I.length;k++){var j=I[k]*3,m=k*3;pa[j]+=Dd[m]*v;pa[j+1]+=Dd[m+1]*v;pa[j+2]+=Dd[m+2]*v}}
  for(k=0;k<pa.length;k++)pa[k]+=SD[k];
- P.needsUpdate=true;g.computeVertexNormals();g.computeBoundingSphere();fitFeatures();for(var n in LY)rebind(LY[n])}
+ P.needsUpdate=true;g.computeVertexNormals();g.computeBoundingSphere();buildShell();fitFeatures();for(var n in LY)rebind(LY[n])}
 
 /* ================= skin painting (tone, makeup, beard shadow) ================= */
 var STOPS=[[0,[0.98,0.86,0.78]],[0.2,[0.93,0.76,0.64]],[0.4,[0.84,0.62,0.48]],[0.6,[0.66,0.46,0.33]],[0.8,[0.45,0.29,0.2]],[1,[0.24,0.15,0.11]]];
@@ -606,7 +719,6 @@ function paintSkin(){paintDirty=false;var cs=skinCol(),ch=col(cur.h),bc=beardCol
   t.lerp(ch,(S.brow.on?0.22:0.7)*((ax>0.15&&ax<0.88&&z>0.7)?sm(1-Math.abs(y-3.2)/0.1):0));
   t.multiplyScalar(1-0.1*Math.exp(-(sq(ax-0.5)/0.1+sq(y-2.78)/0.006))*(z>0.5?1:0));
   if(S.skin.under>0)t.lerp(DK,S.skin.under*0.4*Math.exp(-(sq(ax-0.5)/0.05+sq(y-2.74)/0.006))*(z>0.4?1:0));
-  t.lerp(ch,0.62*cov*(0.35+0.65*cur.stub));
   var fm=fullM(x,y,z);if(fm>0){var bm=cfg[1]?beardMask(cfg[1],x,y,z):0;t.lerp(bc,Math.min(0.75,fm*0.55*S.beard.stub+bm*0.35))}
   if(mk.blush>0)t.lerp(bl,mk.blush*0.45*Math.exp(-(sq(ax-0.78)/0.06+sq(y-2.4)/0.05))*(z>0.2?1:0));
   if(mk.shadow>0)t.lerp(sh,mk.shadow*0.8*Math.exp(-(sq(ax-0.5)/0.07+sq(y-3.05)/0.005))*(z>0.4&&y>2.96?1:0));
@@ -760,7 +872,7 @@ function physUpdate(dt,tm){
  PH.tex.needsUpdate=true;
  if(!force&&E/G2<1e-6)PH.asleep=true;
  PH.ms=PH.ms*0.9+(performance.now()-t0)*0.1}
-function updPhys(){var p=S.phys;PH.on=p.on;PH.k=p.k;PH.damp=p.damp;PH.grav=p.grav;HU.uSag.value=HU.sag0*p.grav*1.8;PH.wind=p.wind;PH.asleep=false}
+function updPhys(){var p=S.phys;LY.scalp.U.uGravF.value=p.grav;PH.on=p.on;PH.k=p.k;PH.damp=p.damp;PH.grav=p.grav;HU.uSag.value=HU.sag0*p.grav*1.8;PH.wind=p.wind;PH.asleep=false}
 function updHairLight(){cam.updateMatrixWorld();cam.matrixWorldInverse.copy(cam.matrixWorld).invert();
  LU.uL1.value.copy(key.position).transformDirection(cam.matrixWorldInverse);LU.uL2.value.copy(rim.position).transformDirection(cam.matrixWorldInverse)}
 
@@ -834,7 +946,7 @@ function restore(sn){restoring=true;var old=JSON.parse(JSON.stringify(S)),nw=JSO
  refreshAll();restoring=false}
 function undo(){if(!UND.length)return;RED.push(last);last=UND.pop();restore(last);updUR()}
 function redo(){if(!RED.length)return;UND.push(last);last=RED.pop();restore(last);updUR()}
-function refreshAll(){updSkinU();updEyeMats();updHairCols();updHairMat();updPhys();applyLight();applyView();paintDirty=true;defDirty=true;syncUI();stats0()}
+function refreshAll(){shortDirty=true;updSkinU();updEyeMats();updHairCols();updHairMat();updPhys();applyLight();applyView();paintDirty=true;defDirty=true;syncUI();stats0()}
 
 /* ================= save / load / export ================= */
 function b64(ta){var u=new Uint8Array(ta.buffer,ta.byteOffset,ta.byteLength),s='';for(var i=0;i<u.length;i+=0x8000)s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(s)}
@@ -853,12 +965,14 @@ function saveJSON(){var o={app:'HeadForge Studio Pro',v:1,level:LEVEL,S:S};var a
 function loadJSON(txt){try{var o=JSON.parse(txt);if(!o||!o.S)throw 0;var sn={s:JSON.stringify(Object.assign(JSON.parse(JSON.stringify(S)),o.S)),lv:o.level||LEVEL,sd:o.sd?unb64(o.sd,Float32Array):new Float32Array(SD.length),cs:o.cs?unb64(o.cs,Float32Array):null,cb:o.cb?unb64(o.cb,Float32Array):null};
   var forceRebuild=sn.lv===LEVEL;if(forceRebuild){S.hair={};S.brow={};S.beard={};S.lash={}}if(sn.lv!==LEVEL){SD=new Float32Array(0)}restore(sn);if(sn.sd.length===SD.length)SD.set(sn.sd);defDirty=true;commit();toast(tx('Character loaded','تم تحميل الشخصية'))}catch(e){toast(tx('Could not read that file','تعذّرت قراءة الملف'),true)}}
 function bake(L,frac){var H=L.H,U=L.U,n=H.n;if(!n||!L.obj)return null;var step=Math.max(1,Math.round(1/frac)),segs=H.segs,cnt=Math.ceil(n/step),pos=new Float32Array(cnt*(segs+1)*3),cl=new Float32Array(cnt*(segs+1)*3),q=0,hc=U.uHair.value,tc=U.uTip.value;
- var bend=U.uBend.value,curl=U.uCurl.value,sag=U.uSag.value,coil=U.uCoil.value,freq=U.uFreq.value,wa=U.uWaveA.value,wf=U.uWaveF.value,lock=U.uLock.value;
+ var FLW=U.uFlow.value>0.5,FP=[0,0,0],clA=U.uClumpA.value,bend=U.uBend.value,curl=U.uCurl.value,sag=U.uSag.value,coil=U.uCoil.value,freq=U.uFreq.value,wa=U.uWaveA.value,wf=U.uWaveF.value,lock=U.uLock.value;
  for(var i=0;i<n;i+=step){var j=i*3,Ln=H.MISC[i*4],rx=H.RT[j],ry=H.RT[j+1],rz=H.RT[j+2],dx=H.DIR[j],dy=H.DIR[j+1],dz=H.DIR[j+2],nx=H.NRM[j],ny=H.NRM[j+1],nz=H.NRM[j+2],va=H.VAR[i],c4=i*4;
   var dn=dx*nx+dy*ny+dz*nz,tx0=dx-nx*dn,ty0=dy-ny*dn,tz0=dz-nz*dn,tl=Math.hypot(tx0,ty0,tz0);if(tl>1e-3){tx0/=tl;ty0/=tl;tz0/=tl}else{tx0=dx;ty0=dy;tz0=dz}
   var cu=new T.Vector3(),ax=new T.Vector3(dx,dy,dz);cu.crossVectors(ax,Math.abs(dy)<0.9?new T.Vector3(0,1,0):new T.Vector3(1,0,0)).normalize();var cw=new T.Vector3().crossVectors(ax,cu);
-  var sd=new T.Vector3().crossVectors(ax,new T.Vector3(0,1,0)).add(new T.Vector3(1e-4,0,0)).normalize(),sd2=new T.Vector3().crossVectors(ax,sd);
-  for(var s=0;s<=segs;s++){var t=s/segs,px=rx+(dx*t+(tx0-dx)*bend*t*t)*Ln+H.MISC[c4+2]*curl*Ln*0.3*t*t,py=ry+(dy*t+(ty0-dy)*bend*t*t)*Ln-sag*Ln*Ln*t*t,pz=rz+(dz*t+(tz0-dz)*bend*t*t)*Ln+H.MISC[c4+3]*curl*Ln*0.3*t*t;
+  var sd=new T.Vector3().crossVectors(ax,new T.Vector3(0,1,0)).add(new T.Vector3(1e-4,0,0)).normalize(),sd2=new T.Vector3().crossVectors(ax,sd);if(FLW){sd.crossVectors(new T.Vector3(nx,ny,nz),ax).add(new T.Vector3(1e-4,0,0)).normalize();sd2.set(nx,ny,nz).multiplyScalar(0.2)}
+  for(var s=0;s<=segs;s++){var t=s/segs,px,py,pz;
+   if(FLW){flowJS(H,U,i,t*Ln,FP);px=FP[0];py=FP[1];pz=FP[2]}else{px=rx+(dx*t+(tx0-dx)*bend*t*t)*Ln;py=ry+(dy*t+(ty0-dy)*bend*t*t)*Ln-sag*Ln*Ln*t*t;pz=rz+(dz*t+(tz0-dz)*bend*t*t)*Ln}
+   if(Ln<U.uHide.value)break;var cwt=clA*sm((t-0.15)/0.85)*sm((Ln-0.05)/0.35);px+=H.MISC[c4+2]*curl*Ln*0.3*t*t+H.CC[j]*cwt;py+=H.CC[j+1]*cwt;pz+=H.MISC[c4+3]*curl*Ln*0.3*t*t+H.CC[j+2]*cwt;
    if(coil>0){var ph0=va*40,ph2=ph0+t*Ln*freq*6.2831,rd=coil*(0.7+0.6*((va*13.7)%1)),a1=Math.cos(ph2)-Math.cos(ph0),a2=Math.sin(ph2)-Math.sin(ph0);px+=(cu.x*a1+cw.x*a2)*rd;py+=(cu.y*a1+cw.y*a2)*rd;pz+=(cu.z*a1+cw.z*a2)*rd}
    var wv=Math.sin(t*Ln*wf*6.2831+H.CL[c4])*wa*H.CL[c4+3]*sm(t/0.2),lk=lock*Ln*t*t;px+=sd.x*wv+(sd.x*H.CL[c4+1]+sd2.x*H.CL[c4+2])*lk;py+=sd.y*wv+(sd.y*H.CL[c4+1]+sd2.y*H.CL[c4+2])*lk;pz+=sd.z*wv+(sd.z*H.CL[c4+1]+sd2.z*H.CL[c4+2])*lk;
    var m=sm((t-0.15)/0.85)*0.7,b=va*(1-0.6*sm((t-0.75)/0.25));pos[q*3]=px;pos[q*3+1]=py;pos[q*3+2]=pz;cl[q*3]=Math.min(1,(hc.r+(tc.r-hc.r)*m)*b);cl[q*3+1]=Math.min(1,(hc.g+(tc.g-hc.g)*m)*b);cl[q*3+2]=Math.min(1,(hc.b+(tc.b-hc.b)*m)*b);q++}}
@@ -931,6 +1045,8 @@ function buildUI(){
   '<div class="sw">'+HCOL.map(function(c){return'<button data-hc="'+c[0]+','+c[1]+'" style="background:linear-gradient('+c[0]+','+c[1]+')" data-ten="'+c[2]+'" data-tar="'+c[3]+'"></button>'}).join('')+'</div>'+
   '<div class="cols">'+C_('hair.h','Root','الجذر')+C_('hair.t','Tips','الأطراف')+'</div>'+R_('hmat.grey','Grey hair','الشيب',0,1,0.02,0)+
   '<div class="two">'+Btn_('regrow2','Regrow','إعادة الإنبات')+Btn_('rd','New seed','بذرة جديدة')+'</div>'+K_('view.hair','Show hair','إظهار الشعر')+
+  Sec_('Flow & volume','الانسياب والحجم',Sel_('hair.flow','Combing direction','اتجاه التسريح',[['crown','Natural crown whorl','دوّامة طبيعية من التاج'],['forward','Forward fringe','غرّة للأمام'],['back','Swept back','مسرّح للخلف'],['side','Side part','فرق جانبي'],['center','Center part (curtains)','فرق في المنتصف (ستارة)'],['up','Up & back (quiff / pompadour)','للأعلى والخلف (كويف / بومبادور)'],['legacy','Classic spiky (v2)','الشائك الكلاسيكي (v2)']])+
+   R_('hair.part','Part position','موضع الفرق',-0.8,0.8,0.01)+R_('hair.vol','Volume','الحجم',0,0.4,0.005)+R_('hair.volF','Front lift (quiff)','رفعة الغرّة',0,0.6,0.01)+R_('hair.layer','Layering','الطبقات',0,1.5,0.02)+R_('hair.clump','Clumping','تجمّع الخصل',0,1,0.02),true)+
   Sec_('Shape','الشكل',SL.map(function(s){return R_('hair.'+s[0],s[1],s[2],s[3],s[4],s[5])}).join(''))+
   Sec_('Physics (real time)','الفيزياء (لحظية)',K_('phys.on','Simulate hair','محاكاة الشعر')+R_('phys.k','Stiffness','الصلابة',40,400,5)+R_('phys.damp','Damping','التخميد',0.05,1,0.05)+R_('phys.grav','Gravity','الجاذبية',0,2,0.05)+R_('phys.wind','Wind','الرياح',0,1.5,0.05,0)+'<div class="two">'+Btn_('shk','Shake head','هزّ الرأس','p')+Btn_('stl','Settle','تهدئة')+'</div>')+
   Sec_('Material','المادة',R_('hmat.shine','Shine','اللمعان',0,2,0.05)+R_('hmat.gloss','Gloss (highlight tightness)','حدة البريق',0.4,2,0.05)+R_('hmat.trans','Backlight translucency','الشفافية مع الإضاءة الخلفية',0,2,0.05))+
@@ -1060,7 +1176,7 @@ function randomFace(){var R=Math.random,a=R()*Math.PI*2,r=Math.sqrt(R())*wheelR(
 function randomAll(){var R=Math.random,pk=function(a){return a[Math.floor(R()*a.length)]};randomFace();
  S.skin.mel=0.05+R()*0.92;S.skin.red=0.25+R()*0.5;S.skin.custom='';S.skin.freck=R()<0.3?R()*0.8:R()*0.15;S.skin.age=R()<0.6?R()*0.3:R()*0.85;
  S.eyes.c=pk(ICOL)[0];S.eyes.het=R()<0.05;S.eyes.limbal=0.3+R()*0.6;
- var hp=pk(['fade','buzz','crop','base','long','ref','curly','wavy','afro','dicap','cruise','undercut']);setP(hp);var hc=pk(HCOL.slice(0,7));cur.h=hc[0];cur.t=hc[1];cur.seed=1+Math.floor(R()*999);
+ var hp=pk(['titanic','topgun','kroos','quiff','pomp','flowback','fade','buzz','crop','base','long','ref','curly','wavy','afro','dicap','cruise','undercut']);setP(hp);var hc=pk(HCOL.slice(0,7));cur.h=hc[0];cur.t=hc[1];cur.seed=1+Math.floor(R()*999);
  S.beard.style=pk(['none','none','stubble','mustache','goatee','boxed','full','long']);S.beard.stub=R()*0.6;S.brow.arch=R()*1.0;S.brow.thick=0.7+R()*0.8;S.hmat.grey=R()<0.15?R()*0.6:0;
  buildScalp();buildBeard();buildBrow();refreshAll();commit()}
 
@@ -1079,7 +1195,7 @@ var tab0='blend';try{tab0=localStorage.getItem('hf_tab')||'blend'}catch(e){}if(!
 ready=true;showTab(tab0);setMode(mode);syncUI();applyDeform();paintSkin();last=snap();updUR();
 var clock=new T.Clock(),fpsA=0,fpsN=0;
 // HF_TEST: headless harness steps frames manually instead of running the rAF loop
-if(window.HF_TEST)window.HF={S:S,BR:BR,LY:LY,frame:function(n){for(var i=0;i<(n||1);i++)frame()},setCtl:setCtl,syncUI:syncUI,showTab:showTab,goCam:goCam,undo:undo,redo:redo,brushAt:brushAt,commit:commit,randomAll:randomAll,setupMesh:setupMesh,buildAll:buildAll,refreshAll:refreshAll,gStart:gStart,cutAt:cutAt,exportOBJ:exportOBJ,saveJSON:saveJSON,loadJSON:loadJSON,anim:ANIM,RIMS:function(){return RIMS},cam:function(t,p,d){th=t;ph=p;dist=d;camGoal=null;place()},setTgt:function(x,y,z){tgt.set(x,y,z);place()},snap:snap};
+if(window.HF_TEST)window.HF={geo:function(){return g},skinMat:skinMat,updShort:updShort,EARD:function(){return EARD},S:S,BR:BR,LY:LY,frame:function(n){for(var i=0;i<(n||1);i++)frame()},setCtl:setCtl,syncUI:syncUI,showTab:showTab,goCam:goCam,undo:undo,redo:redo,brushAt:brushAt,commit:commit,randomAll:randomAll,setupMesh:setupMesh,buildAll:buildAll,refreshAll:refreshAll,gStart:gStart,cutAt:cutAt,exportOBJ:exportOBJ,saveJSON:saveJSON,loadJSON:loadJSON,anim:ANIM,RIMS:function(){return RIMS},cam:function(t,p,d){th=t;ph=p;dist=d;camGoal=null;place()},setTgt:function(x,y,z){tgt.set(x,y,z);place()},snap:snap};
 (function loop(){requestAnimationFrame(loop);if(!window.HF_TEST)frame()})();
 function frame(){var dt=Math.min(clock.getDelta(),0.05),tm=clock.elapsedTime;
  if(auto)autoStep(dt);
@@ -1093,7 +1209,7 @@ function frame(){var dt=Math.min(clock.getDelta(),0.05),tm=clock.elapsedTime;
   if(cutting||auto){clip.position.addScaledVector(tn,Math.sin(tm*140)*0.006*sc*LD.mt.vib);tilt.rotation.z=Math.sin(tm*95)*0.012*LD.mt.vib}else tilt.rotation.z=0}
  if(G.on){G.t-=dt;G.last+=dt;if(G.last>0.45){G.last=0;if(G.dirty){G.dirty=false;G.acc=accuracy();drawMini()}}hud();if(G.t<=0)gEnd()}
  if(defDirty)applyDeform();if(paintDirty)paintSkin();
- updEyes(dt);stepP(dt);for(var n in LY){var L=LY[n];if(L.dirty&&L.obj){L.obj.geometry.attributes.aMisc.needsUpdate=true;L.dirty=false}}physUpdate(dt,tm);updHairLight();
+ updEyes(dt);stepP(dt);for(var n in LY){var L=LY[n];if(L.dirty&&L.obj){L.obj.geometry.attributes.aMisc.needsUpdate=true;L.dirty=false;shortDirty=true}}if(shortDirty&&tm-shortT>0.1){shortT=tm;updShort()}physUpdate(dt,tm);updHairLight();
  ren.render(scene,cam);
  fpsA+=dt;fpsN++;if(fpsA>0.5){$('sbF').textContent=Math.round(fpsN/fpsA)+' fps';$('phn').textContent=PH.G?(PH.G+tx(' guides · sim ',' دليل · محاكاة ')+PH.ms.toFixed(2)+' ms'+(PH.asleep?tx(' · asleep',' · ساكن'):'')):'';fpsA=fpsN=0}}
 })();
